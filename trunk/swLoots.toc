@@ -1,13 +1,15 @@
-## Interface: 20003
+## Interface: 20300
 ## Title: swLoots
 ## Author: Dennis Zickefoose, Jr
-## Version: 0.0.1
-## Notes: A simple loot system.
+## Version: 0.0.2
+## Notes: A simple loot rolling system
 ## eMail: dennis.zickefoose@gmail.com
-## URL: http://www.stormwardens.com
+## URL: http://code.google.com/p/swloot/
 ## DefaultState: Enabled
 ## LoadOnDemand: 0
 ## SavedVariables: swLootsData
+## OptionalDeps: Ace2
+## X-Embeds: Ace2
 
 Libs\AceLibrary\AceLibrary.lua
 Libs\AceOO-2.0\AceOO-2.0.lua
