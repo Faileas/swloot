@@ -217,14 +217,14 @@ function swLoots:CHAT_MSG_SYSTEM(arg1)
     end
 end
 
-function swLoots:StateMachineThatDoesntSuck(state, need, greed)
+function swLoots:StateMachine(state, need, greed)
     if state == swLoots.stateStartNeed then
         swLoots:Communicate("Need rolls for " .. swLoots.currentItem)
-        self:ScheduleEvent(function() self:StateMachineThatDoesntSuck(swLoots.stateNeedCount, need, greed) end, 3)
+        self:ScheduleEvent(function() self:StateMachine(swLoots.stateNeedCount, need, greed) end, 3)
     elseif state == swLoots.stateNeedCount then
         swLoots:Communicate(need)
         if need == 0 then state = swLoots.stateEvaluateNeed end
-        self:ScheduleEvent(function() self:StateMachineThatDoesntSuck(state, need-1, greed) end, 1)
+        self:ScheduleEvent(function() self:StateMachine(state, need-1, greed) end, 1)
     elseif state == swLoots.stateEvaluateNeed then
         local winner, winnerUnusedNeed = swLoots:DetermineWinner()
         if winner ~= nil then
@@ -240,15 +240,15 @@ function swLoots:StateMachineThatDoesntSuck(state, need, greed)
             swLoots.winnerRolledNeed = true
             swLoots:EndRoll()
         else 
-            self:ScheduleEvent(function() self:StateMachineThatDoesntSuck(swLoots.stateStartGreed, nil, greed) end, 3)
+            self:ScheduleEvent(function() self:StateMachine(swLoots.stateStartGreed, nil, greed) end, 3)
         end
     elseif state == swLoots.stateStartGreed then
         swLoots:Communicate("Greed rolls for " .. swLoots.currentItem)
-        self:ScheduleEvent(function() self:StateMachineThatDoesntSuck(swLoots.stateGreedCount, nil, greed) end, 3)
+        self:ScheduleEvent(function() self:StateMachine(swLoots.stateGreedCount, nil, greed) end, 3)
     elseif state == swLoots.stateGreedCount then
         swLoots:Communicate(greed)
         if greed == 0 then state = swLoots.stateEvaluateGreed end
-        self:ScheduleEvent(function() self:StateMachineThatDoesntSuck(state, nil, greed-1) end, 1)
+        self:ScheduleEvent(function() self:StateMachine(state, nil, greed-1) end, 1)
     elseif state == swLoots.stateEvaluateGreed then
         local winner = swLoots:DetermineWinner()
         if winner ~= nil then
@@ -264,51 +264,6 @@ function swLoots:StateMachineThatDoesntSuck(state, need, greed)
     end
 end
 
-function swLoots:StateMachine(state)
---TODO: Figure out if I was drunk when I wrote this function.  
---      http://www.parashift.com/c++-faq-lite/newbie.html#faq-29.11
-    if state == 0 then
-        swLoots:Communicate("Need rolls for " .. swLoots.currentItem)
-        self:ScheduleEvent(function() self:StateMachine(1) end, 3)
-    elseif state < 10 then
-        swLoots:Communicate(10-state)
-        self:ScheduleEvent(function() self:StateMachine(state + 1) end, 1)
-    elseif state == 10 then
-        local winner, winnerUnusedNeed = swLoots:DetermineWinner()
-        if winner ~= nil then
-            if winner == winnerUnusedNeed or winnerUnusedNeed == nil then
-                swLoots:Communicate(winner .. " won " .. swLoots.currentItem .. " on a need.")
-                swLoots.currentWinner = winner
-            else
-                swLoots:Communicate(winner .. " rolled highest, but " ..
-                                    winnerUnusedNeed .. " wins " .. 
-                                    swLoots.currentItem .. " on a need.")
-                swLoots.currentWinner = winnerUnusedNeed
-            end
-            swLoots.winnerRolledNeed = true
-            swLoots:EndRoll()
-        else 
-            self:ScheduleEvent(function() self:StateMachine(11) end, 3)
-        end
-    elseif state == 11 then
-        swLoots:Communicate("Greed rolls for " .. swLoots.currentItem)
-        self:ScheduleEvent(function() self:StateMachine(12) end, 3)
-    elseif state < 16 then
-        swLoots:Communicate(16-state)
-        self:ScheduleEvent(function() self:StateMachine(state+1) end, 1)
-    else
-        local winner = swLoots:DetermineWinner()
-        if winner ~= nil then
-            swLoots:Communicate(winner .. " won " .. swLoots.currentItem .. " on a greed.")
-            swLoots.currentWinner = winner
-            swLoots.winnerRolledNeed = false
-        else 
-            swLoots:Communicate("Rolls over; nobody rolled.")
-        end
-        self:EndRoll()
-    end
-end
-
 function swLoots:StartRoll(item)
     if swLootsData.currentRaid == nil then
         self:Print("Please start a raid before rolling for loot")
@@ -317,8 +272,7 @@ function swLoots:StartRoll(item)
     self:RegisterEvent("CHAT_MSG_SYSTEM")
     swLoots.currentItem = item
     self:ResetLastRoll()
-    --self:StateMachine(0)
-    self:StateMachineThatDoesntSuck(swLoots.stateStartNeed, 10, 5)
+    self:StateMachine(swLoots.stateStartNeed, 10, 5)
 end
 
 function swLoots:StartGreed(item)
@@ -329,8 +283,7 @@ function swLoots:StartGreed(item)
     self:RegisterEvent("CHAT_MSG_SYSTEM")
     self.currentItem = item
     self:ResetLastRoll()
-    --self:StateMachine(11)
-    self:StateMachineThatDoesntSuck(swLoots.stateStartGreed, nil, 5)
+    self:StateMachine(swLoots.stateStartGreed, nil, 5)
 end
 
 function swLoots:EndRoll()
@@ -391,12 +344,15 @@ function swLoots:AwardItem(str)
         need = "greed"
         if(found == nil) then self:Print("error") return end
     end
+    local msg = player .. " awarded " .. item
     if need == "need" then 
+        msg = msg .. " using a need"
         swLootsData.raids[swLootsData.currentRaid].usedNeed[player] = true 
     elseif need ~= "greed" then
         self:Print("Unrecognized text following item link")
         return
     end
+    self:Communicate(msg .. ".")
     swLootsData.raids[swLootsData.currentRaid].loot[item] = player
 end
 function swLoots:Communicate(str)
