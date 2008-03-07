@@ -179,8 +179,21 @@ function swLoots:OnInitialize()
 end
 
 function swLoots:UPDATE_INSTANCE_INFO(arg1)
-    --TODO: FIGURE OUT IF I STILL WANT THIS FUNCTION TO EXIST
-    --It was part of the "guess what instance ID I'm in" code, but I might not want that anymore
+    local inInstance, instanceType = IsInInstance()
+--    if inInstance == true then
+--    if (inInstance == true) and (instanceType == "raid") then
+	numInstances = GetNumSavedInstances()
+--	self:Print("You are saved to " .. numInstances .. " instances.")
+--	self:Print("You are in " .. GetZoneText() .. ".")
+	for instanceIndex = 1, numInstances do
+		local name, ID, remaining = GetSavedInstanceInfo(instanceIndex)
+--		self:Print("Index " .. instanceIndex .. " is " .. name)
+--		self:Print("Index " .. instanceIndex)
+		if name == GetZoneText() then
+			self:Print("Your " .. name .. " raid ID is: " .. ID)
+		end
+	end
+--    end
 end
 
 function swLoots:RecordRoll(char, roll, min, max)
@@ -415,6 +428,12 @@ end
 function swLoots:SummarizeRaid()
     if swLootsData.currentRaid == nil then 
         self:Print("You are not currently tracking a raid.") 
+       	for instanceIndex = 1, numInstances do
+            local name, ID, remaining = GetSavedInstanceInfo(instanceIndex)
+            if name == GetZoneText() then
+                self:Print("  Your " .. name .. " raid ID is: " .. ID)
+            end
+        end
         return 
     end
     self:Communicate("Currently active raid: " .. swLootsData.currentRaid)
