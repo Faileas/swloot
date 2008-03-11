@@ -1,6 +1,4 @@
-﻿--[[CONCURRENCY]]--
-
-local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
+﻿local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
 local options = {
     type='group',
     args = { 
@@ -153,6 +151,34 @@ local options = {
                 swLootsData.raids[new] = swLootsData.raids[old]
                 swLootsData.raids[old] = nil
                 if swLootsData.currentRaid == old then swLootsData.currentRaid = new end
+            end
+        },
+        
+        disqualifyRoll = {
+            type = 'text',
+            name = 'disqualifyRoll',
+            desc = 'Removes a roller from consideration when they roll out of turn',
+            usage = '<player>',
+            get = false,
+            set = function(str)
+                if swLoots.currentRollers[str] == nil then
+                    swLoots:Print(str .. " did not roll.")
+                    return
+                end
+                swLoots.currentRollers[str] = -1 -- (-1) prevents him from rolling again if a roll
+                                                 -- is in progress
+                local msg = str .. " was disqualified. "
+                if swLoots.rollInProgress ~= true then 
+                    local winner, winnerUnusedNeed = swLoots:DetermineWinner()
+                    if winner == nil then
+                        msg = msg .. " However, nobody else rolled."
+                    elseif winner == winnerUnusedNeed or winnerUnusedNeed == nil then
+                        msg = msg .. " The new winner is " .. winner .. "."
+                    else
+                        msg = msg .. " " .. winner .. " rolled highest, but " .. winnerUnusedNeed
+                                  .. " has a need roll remaining."
+                    end
+                end
             end
         },
     }
