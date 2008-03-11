@@ -164,6 +164,9 @@ swLoots.stateStartGreed = 3
 swLoots.stateGreedCount = 4
 swLoots.stateEvaluateGreed = 5
 
+--A simple locking mechanism to prevent two rolls from taking place at once.
+swLoots.rollInProgress = false
+
 swLootsData.raids = {}
 
 swLootsData.loRoll = 1
@@ -265,24 +268,32 @@ function swLoots:StateMachine(state, need, greed)
 end
 
 function swLoots:StartRoll(item)
-    if swLootsData.currentRaid == nil then
+    if swLoots.rollInProgress == true then
+        self:Print("Another roll is in progress [" .. swLoots.currentItem .. "]; please wait for it to complete.")
+        return
+    elseif swLootsData.currentRaid == nil then
         self:Print("Please start a raid before rolling for loot")
         return
     end
     self:RegisterEvent("CHAT_MSG_SYSTEM")
     swLoots.currentItem = item
     self:ResetLastRoll()
+    swLoots.rollInProgress = true
     self:StateMachine(swLoots.stateStartNeed, 10, 5)
 end
 
 function swLoots:StartGreed(item)
-    if swLootsData.currentRaid == nil then
+    if swLoots.rollInProgress == true then
+        self:Print("Another roll is in progress [" .. swLoots.currentItem .. "]; please wait for it to complete.")
+        return
+    elseif swLootsData.currentRaid == nil then
         self:Print("Please start a raid before rolling for loot")
         return
     end
     self:RegisterEvent("CHAT_MSG_SYSTEM")
     self.currentItem = item
     self:ResetLastRoll()
+    self.rollInProgress = true
     self:StateMachine(swLoots.stateStartGreed, nil, 5)
 end
 
@@ -291,6 +302,7 @@ function swLoots:EndRoll()
     for k,v in pairs(swLoots.currentRollers) do
       self:Print(k .. " rolled " .. v)
     end
+    self.rollInProgress = false
 end
 
 function swLoots:DetermineWinner()
