@@ -1,0 +1,7 @@
+Dennis's list of things he wants to see happen
+
+(1) Get synchronization working
+(2) Make it at least passibly "thread safe" [one roll at a time, please]
+(3) Rethink raid naming.  Untie the name with the table location to de-emphasize naming, and associate the instance ID with the raid so you can select raids that way as well.  Maybe a date field?
+(4) Shard rolls, pref w/ interface
+(5) More output options [notably summarizing to party/self regardless of group composition]
