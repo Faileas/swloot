@@ -136,22 +136,69 @@ local options = {
                 swLootsData.raids[swLootsData.currentRaid].usedNeed[name] = nil
             end
         },
+        
+        renameRaid = {
+            type = 'text',
+            name = 'renameRaid',
+            desc = 'Renames an existing raid',
+            usage = '<old raid name> <new raid name>',
+            get = false,
+            set = function(str)
+                local found, _, old, new = string.find(str, "(%a+)%s+(.+)")
+                if found == nil then 
+                    self:Print("Incorrect usage [<old raid name> <new raid name>]")
+                    return
+                end
+                swLoots:Print("Changing raid [" .. old .. "] to [" .. new .. "]")
+                swLootsData.raids[new] = swLootsData.raids[old]
+                swLootsData.raids[old] = nil
+                if swLootsData.currentRaid == old then swLootsData.currentRaid = new end
+            end
+        },
     }
 }
 
 swLoots = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0", "AceComm-2.0")
 swLoots:RegisterChatCommand("/swloot", options)
 
+--swLootsData is the structure that gets saved between sessions.  No new members should be added to 
+--it unless you want them to be saved.  Single session data belongs in swLoots
 swLootsData = {}
+
+--A table of users trusted to automatically synchronize with.
+--If trustedUsers[BillyBob] ~= true, then BillyBob is not a trusted user
 swLootsData.trustedUsers = {}
+
+--Basically the number of pieces of loot this account has awarded; used to ensure unique IDs while
+--  synchronizing
+--WHY ARE YOU NIL
+swLootsData.nextLootID = 0
+
+--The actual loot information.  The index is the raid ID
+-- raids[ID].loot a table of the awarded loot.  Index is the item's name [not a link], 
+--     and the value is the player who won the item
+-- raids[ID].usedNeed is a table of people who have used need.  
+--     usedNeed[BillyBob] == true indicates BillyBob has used his need; otherwise it is still free
+
+--RETHOUGHTS
+-- raids[ID].loot should be indexed by a loot ID.  The loot ID is addon-user's player name
+--   concatinated with the nextLootID field.
+-- Then there would be raids[ID].loot[ID'].item and raids[ID].loot[ID'].player
 swLootsData.raids = {}
+
+--These define the acceptable roll range.  Eventually, I should like to make this variable, hense
+--their inclusion in the saved data
 swLootsData.loRoll = 1
 swLootsData.hiRoll = 100
 swLootsData.currentRaid = nil
 
+--Used by the aceComm library.  Do not change without a really good reason.
 swLoots.commPrefix = "swLoots"
-swLootsData.trustedUsers = {}
 
+--This is information used by the roll tracker.  
+--currentRollers[Player] is the roll made by Player
+--currentWinner is the player who won the last successful roll.  Its value is undefined while a
+--  roll is taking place.
 swLoots.currentRollers = {}
 swLoots.currentWinner = nil
 swLoots.winnerRolledNeed = false
@@ -166,12 +213,6 @@ swLoots.stateEvaluateGreed = 5
 
 --A simple locking mechanism to prevent two rolls from taking place at once.
 swLoots.rollInProgress = false
-
-swLootsData.raids = {}
-
-swLootsData.loRoll = 1
-swLootsData.hiRoll = 100
-swLootsData.currentRaid = nil
 
 function swLoots:OnInitialize()
     self:Print("swLoots successfully initialized.")
@@ -334,39 +375,38 @@ function swLoots:Award()
         return
     end
     
-    swLootsData.raids[swLootsData.currentRaid].loot[swLoots.currentItem] = swLoots.currentWinner
+    local myRaid = swLootsData.raids[swLootsData.currentRaid]
+    --swLootsData.raids[swLootsData.currentRaid].loot[swLoots.currentItem] = swLoots.currentWinner
+    local lootID = UnitName("player") .. swLootsData.nextLootID
+    myRaid.loot[lootID] = {}
+    myRaid.loot[lootID].item = swLoots.currentItem
+    myRaid.loot[lootID].winner = swLoots.currentWinner
+    
     local msg = swLoots.currentWinner .. " awarded " .. swLoots.currentItem
     if swLoots.winnerRolledNeed == true and 
-            swLootsData.raids[swLootsData.currentRaid].usedNeed[swLoots.currentWinner] == nil then
+            --swLootsData.raids[swLootsData.currentRaid].usedNeed[swLoots.currentWinner] == nil then
+            myRaid.usedNeed[swLoots.currentWinner] == nil then
         msg = msg .. " using a need"
-        swLootsData.raids[swLootsData.currentRaid].usedNeed[swLoots.currentWinner] = true
+        --swLootsData.raids[swLootsData.currentRaid].usedNeed[swLoots.currentWinner] = true
+        myRaid.usedNeed[swLoots.currentWinner] = true
     end
     swLoots:Communicate(msg .. ".")
+    swLootsData.nextLootID = swLootsData.nextLootID + 1
 end
 
 function swLoots:AwardItem(str)    
-    if swLootsData.currentRaid == nil then
-        self:Print("You are not currently tracking a raid; loot distribution disabled.")
-        return
-    end
-    
     local found,_, player, item, need = string.find(str, "^(%a+) (" .. ItemLinkPattern ..") (.*)")
     if found == nil then 
         found, _, player, item = string.find(str, "^(%a+) (" .. ItemLinkPattern ..")")
         need = "greed"
         if(found == nil) then self:Print("error") return end
     end
-    local msg = player .. " awarded " .. item
-    if need == "need" then 
-        msg = msg .. " using a need"
-        swLootsData.raids[swLootsData.currentRaid].usedNeed[player] = true 
-    elseif need ~= "greed" then
-        self:Print("Unrecognized text following item link")
-        return
-    end
-    self:Communicate(msg .. ".")
-    swLootsData.raids[swLootsData.currentRaid].loot[item] = player
+    self.currentItem = item
+    self.currentWinner = player
+    self.winnerRolledNeed = (need == "need")
+    self:Award()
 end
+
 function swLoots:Communicate(str)
     if GetNumRaidMembers() > 0 then
         SendChatMessage(str, "RAID")
@@ -376,6 +416,7 @@ function swLoots:Communicate(str)
         self:Print(str)
     end
 end
+
 function swLoots:ResetLastRoll()
     swLoots.currentRollers = {}
     swLoots.currentWinner = nil
@@ -396,6 +437,7 @@ end
 function swLoots:SummarizeRaid()
     if swLootsData.currentRaid == nil then 
         self:Print("You are not currently tracking a raid.") 
+        --TODO: Isn't there a system function that prints this?
        	for instanceIndex = 1, numInstances do
             local name, ID, remaining = GetSavedInstanceInfo(instanceIndex)
             if name == GetZoneText() then
@@ -406,12 +448,16 @@ function swLoots:SummarizeRaid()
     end
     self:Communicate("Currently active raid: " .. swLootsData.currentRaid)
     self:Communicate("Awarded gear:")
-    for i,j in pairs(swLootsData.raids[swLootsData.currentRaid].loot) do
-        self:Communicate("   " .. i .. " -- " .. j)
+    local myRaid = swLootsData.raids[swLootsData.currentRaid]
+    --for i,j in pairs(swLootsData.raids[swLootsData.currentRaid].loot) do
+    for i,j in pairs(myRaid.loot) do
+        --self:Communicate("   " .. i .. " -- " .. j)
+        self:Communicate("   " .. j.item .. " -- " .. j.winner)
     end
     self:Communicate(" ")
     self:Communicate("Needs used:")
-        for i,j in pairs(swLootsData.raids[swLootsData.currentRaid].usedNeed) do
+    --for i,j in pairs(swLootsData.raids[swLootsData.currentRaid].usedNeed) do
+    for i,j in pairs(myRaid.usedNeed) do
         self:Communicate("   " .. i)
     end
 end
@@ -423,13 +469,55 @@ function swLoots:Synchronize(str)
     end
 end
 
-function swLoots:ReceiveMessage(prefix, sender, distribution, raid, data)
-    if swLootsData.trustedUsers[sender] ~= true then
+function swLoots:ReceiveMessage(prefix, sender, distribution, raid, data, bounceback)
+    if bounceback ~= true and swLootsData.trustedUsers[sender] ~= true then
         self:Print("An untrusted user [" .. sender .. "] has attempted to synchronize data.")
         self:Print("If this was in error, please use the command /swloot addTrustedUser " .. sender .. " to add this player to your trusted list.")
         return
     end
-    swLootsData.raids[raid] = data
+    if swLootsData.raids[raid] == nil then
+        --we do not know anything about this raid, so just copy his data
+        swLootsData.raids[raid] = data
+    else
+        --we do know about this raid, so merge in loot and usedNeed
+        local myRaid = swLootsData.raids[raid]
+        --loot first
+        --[[for item, winner in pairs(data.loot) do
+            if myRaid.loot[item] ~= nil then --this item already exists
+                if myRaid.loot[item] ~= winner then --but doesn't belong to who we think it does
+                    self:Print("Duplicate entry found...ignoring pending implementation of tracking multiple copies of loot")
+                end
+            else 
+                self:Print("Adding " .. item .. " and awarding to " .. winner .. ".")
+                for i = 1, #item do
+                    self:Print(string.byte(item, i) .. " -- " .. string.char(string.byte(item, i)))
+                end
+                myRaid.loot[item] = winner
+            end
+        end--]]
+        for ID, loot in pairs(data.loot) do
+            if myRaid.loot[ID] == nil then 
+                self:Print("adding " .. loot.item .. " and awarding to " .. loot.winner .. ".")
+                myRaid.loot[ID] = {}
+                myRaid.loot[ID].item = loot.item
+                myRaid.loot[ID].winner = loot.winner
+            end
+        end
+        
+        --now needs.  Assumption is that if either person believes a need has been used, then a need
+        --has been used.  This means that if a need is revoked but only one player is made aware,
+        --then a later synchronization will result in the need being reapplied.
+        for player, used in pairs(data.usedNeed) do
+            if used == true then myRaid.usedNeed[player] = true end
+        end
+        
+        --Now send your data to the other player, so that both raids have the same information
+        if bounceback ~= true then
+            if not(self:SendCommMessage("WHISPER", sender, raid, myRaid, true)) then
+                self:Print("An error occured while attempting to synchronize data.")
+            end
+        end
+    end
     self:Print("Recieved data from " .. sender .." about raid " .. raid .. ".")
 end
 
