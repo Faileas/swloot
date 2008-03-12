@@ -199,18 +199,18 @@ swLootsData.trustedUsers = {}
 --Basically the number of pieces of loot this account has awarded; used to ensure unique IDs while
 --  synchronizing
 --WHY ARE YOU NIL
+--YOU ARE NOT NIL ANYMORE I FIXED YOU
 swLootsData.nextLootID = 0
 
 --The actual loot information.  The index is the raid ID
--- raids[ID].loot a table of the awarded loot.  Index is the item's name [not a link], 
---     and the value is the player who won the item
--- raids[ID].usedNeed is a table of people who have used need.  
---     usedNeed[BillyBob] == true indicates BillyBob has used his need; otherwise it is still free
+-- raids[ID].loot is a table of the awarded loot.  The index is made up of the player's name, and a
+--                unique number; it isn't actually that important except when merging data
+-- raids[ID].loot[ID'].item is the item's name
+-- raids[ID].loot[ID'].player is the winner's name
 
---RETHOUGHTS
--- raids[ID].loot should be indexed by a loot ID.  The loot ID is addon-user's player name
---   concatinated with the nextLootID field.
--- Then there would be raids[ID].loot[ID'].item and raids[ID].loot[ID'].player
+--These fields are not yet used:
+-- raids[ID].instances is an array of instance IDs that have been awarded loot
+-- raids[ID].date is the date when the raid was started
 swLootsData.raids = {}
 
 --These define the acceptable roll range.  Eventually, I should like to make this variable, hense
@@ -457,6 +457,8 @@ function swLoots:CreateRaid(name)
         swLootsData.raids[name] = {}
         swLootsData.raids[name].loot = {}
         swLootsData.raids[name].usedNeed = {}
+        swLootsData.raids[name].instances = {}
+        swLootsData.raids[name].date = date("%Y %b %d")
         self:Print("Created raid: " .. name)
     end
 end
@@ -474,8 +476,10 @@ function swLoots:SummarizeRaid()
         return 
     end
     self:Communicate("Currently active raid: " .. swLootsData.currentRaid)
-    self:Communicate("Awarded gear:")
     local myRaid = swLootsData.raids[swLootsData.currentRaid]
+    
+    if myRaid.date ~= nil then self:Communicate("Created on: " .. myRaid.date) end
+    self:Communicate("Awarded gear:")
     --for i,j in pairs(swLootsData.raids[swLootsData.currentRaid].loot) do
     for i,j in pairs(myRaid.loot) do
         --self:Communicate("   " .. i .. " -- " .. j)
@@ -509,19 +513,6 @@ function swLoots:ReceiveMessage(prefix, sender, distribution, raid, data, bounce
         --we do know about this raid, so merge in loot and usedNeed
         local myRaid = swLootsData.raids[raid]
         --loot first
-        --[[for item, winner in pairs(data.loot) do
-            if myRaid.loot[item] ~= nil then --this item already exists
-                if myRaid.loot[item] ~= winner then --but doesn't belong to who we think it does
-                    self:Print("Duplicate entry found...ignoring pending implementation of tracking multiple copies of loot")
-                end
-            else 
-                self:Print("Adding " .. item .. " and awarding to " .. winner .. ".")
-                for i = 1, #item do
-                    self:Print(string.byte(item, i) .. " -- " .. string.char(string.byte(item, i)))
-                end
-                myRaid.loot[item] = winner
-            end
-        end--]]
         for ID, loot in pairs(data.loot) do
             if myRaid.loot[ID] == nil then 
                 self:Print("adding " .. loot.item .. " and awarding to " .. loot.winner .. ".")
