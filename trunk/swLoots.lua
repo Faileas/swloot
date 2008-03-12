@@ -179,6 +179,7 @@ local options = {
                                   .. " has a need roll remaining."
                     end
                 end
+                swLoots:Print(msg)
             end
         },
     }
@@ -429,7 +430,7 @@ function swLoots:AwardItem(str)
     end
     self.currentItem = item
     self.currentWinner = player
-    self.winnerRolledNeed = (need == "need")
+    self.winnerRolledNeed = (string.lower(need) == "need")
     self:Award()
 end
 
