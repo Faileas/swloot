@@ -1,4 +1,13 @@
-﻿local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
+﻿--TODO: Decide when we can clear the warning flag
+--Thoughts: two type of warnings; awarding outside and awarding in wrong instance
+--  awarding outside can be reset when you award something inside
+--  awarding in the wrong instance can be reset when loot is awarded successfully
+--To sum up: Both can be reset when something is looted inside an instance
+
+--TODO: The instanceID code in Award is really dumb
+--Thoughts: Once intarweb work look up lua tables and see what functions are available
+
+local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
 local options = {
     type='group',
     args = { 
@@ -69,6 +78,13 @@ local options = {
             name = 'summarize',
             desc = 'Summarize the active raid',
             func = "SummarizeRaid"
+        },
+        
+        debugText = {
+            type = 'execute',
+            name = 'ToggleDebug',
+            desc = 'Toggles between normal operation, and forcing all output to local chat',
+            func = function() swLoots.debug = not swLoots.debug end
         },
         
         synchronize = {
@@ -241,6 +257,43 @@ swLoots.stateEvaluateGreed = 5
 --A simple locking mechanism to prevent two rolls from taking place at once.
 swLoots.rollInProgress = false
 
+--If true, Communicate always prints to the local chat
+swLoots.debug = false
+
+swLoots.warningMultipleRaids = false
+swLoots.warningNotInInstance = false
+
+--I'll bet there's a better name for this function.  It locates a raid that matches the isntance ID
+--for the instance you're in.
+function swLoots:FindRaid()
+    currentID = swLoots:GetInstanceID()
+    
+    for name, raid in pairs(swLootsData.raids) do
+        if raid.instances == nil then raid.instances = {} end
+        for i, v in ipairs(raid.instances) do
+            if v == currentID then return name end
+        end
+    end
+    
+    return nil
+end
+
+--Returns nil if you are not in an instance; 0 if you are not saved; the instance ID otherwise
+--Here's hoping 0 is not a valid instance ID
+function swLoots:GetInstanceID()
+    inInstance, instanceType = IsInInstance()
+    if inInstance ~= 1 or instanceType == "pvp" or instanceType == "arena" then return nil end
+    
+    local currentInstance = GetRealZoneText()
+    local currentID = 0
+    
+    for index = 1, GetNumSavedInstances() do
+        local instance, ID = GetSavedInstanceInfo(index)
+        if instance == currentInstance then currentID = ID end
+    end
+    return currentID
+end
+
 function swLoots:OnInitialize()
     self:Print("swLoots successfully initialized.")
     self:SetCommPrefix(swLoots.commPrefix)
@@ -341,6 +394,7 @@ function swLoots:StartRoll(item)
         return
     elseif swLootsData.currentRaid == nil then
         self:Print("Please start a raid before rolling for loot")
+        PrintRecommendedRaid()
         return
     end
     self:RegisterEvent("CHAT_MSG_SYSTEM")
@@ -356,6 +410,7 @@ function swLoots:StartGreed(item)
         return
     elseif swLootsData.currentRaid == nil then
         self:Print("Please start a raid before rolling for loot")
+        PrintRecommendedRaid()
         return
     end
     self:RegisterEvent("CHAT_MSG_SYSTEM")
@@ -391,6 +446,62 @@ function swLoots:DetermineWinner()
     return winner, winnerUnusedNeed
 end
 
+--Prints out which raid is associated with the current instance ID
+function PrintRecommendedRaid()
+    local raidName = swLoots:FindRaid()
+    if raidName ~= nil then 
+        swLoots:Print("[" .. raidName .. "] is currently tracking this instance.")
+    else
+        swLoots:Print("No raid is currently tracking this instance.")
+    end
+end
+
+--Return value is true if you are tracking a safe raid; otherwise, returns false
+function swLoots:ValidateTrackedRaid()
+    --Things I need to check for:
+    --  Are we in an instance?
+    --  If so, are we in an instance associated with our raid?
+    --  If not, are we in an instance associated with any raid?
+    --  If not, are we associated with any instance?
+    --I AM FINDING THIS VERY HARD
+    --Is that, perhaps, what she said?
+    --Indeed, no.  What she said was "put this in a function, dumbass"
+    
+    --  Are we in an instance?
+    local _, type = IsInInstance()
+    if type ~= "party" and type ~= "raid" then
+        if swLoots.warningNotInInstance == false then
+            swLoots:Print("You are no inside an instance; are you sure you are tracking the correct raid?")
+            swLoots.warningNotInInstance = true
+            return false
+        else 
+            return true
+        end
+    end
+    
+    --  If so, are we in an instance associated with our raid?
+    local raidName = swLoots:FindRaid()
+    if raidName == swLootsData.currentRaid then 
+        return true 
+    elseif raidName ~= nil then    
+        --  If not, are we in an instance associated with any raid?
+        swLoots:Print("[" .. raidName .. "] is currently tracking this instance.")
+        return false --I do not intend for this to be something you can circumvent
+    end
+
+    --  If not, are we associated with any instance?
+    if #(swLootsData.raids[swLootsData.currentRaid].instances) == 0 then return true end
+    
+    -- We are associated with *an* instance, just not this one.
+    if swLoots.warningMultipleRaids == false then
+        swLoots:Print("This raid is not associated with this instance.")
+        swLoots.warningMultipleRaids = true
+        return false
+    else
+        return true
+    end
+end
+
 function swLoots:Award()
     if swLoots.currentWinner == nil then
         self:Print("Please use /swloot roll <item> before attempting to award loot")
@@ -399,10 +510,14 @@ function swLoots:Award()
     
     if swLootsData.currentRaid == nil then
         self:Print("You are not currently tracking a raid; loot distribution disabled.")
+        PrintRecommendedRaid()
         return
     end
-    
+        
     local myRaid = swLootsData.raids[swLootsData.currentRaid]
+    
+    if swLoots:ValidateTrackedRaid() == false then return end
+        
     --swLootsData.raids[swLootsData.currentRaid].loot[swLoots.currentItem] = swLoots.currentWinner
     local lootID = UnitName("player") .. swLootsData.nextLootID
     myRaid.loot[lootID] = {}
@@ -410,18 +525,49 @@ function swLoots:Award()
     myRaid.loot[lootID].winner = swLoots.currentWinner
     
     local msg = swLoots.currentWinner .. " awarded " .. swLoots.currentItem
-    if swLoots.winnerRolledNeed == true and 
-            --swLootsData.raids[swLootsData.currentRaid].usedNeed[swLoots.currentWinner] == nil then
-            myRaid.usedNeed[swLoots.currentWinner] == nil then
+    if swLoots.winnerRolledNeed == true and myRaid.usedNeed[swLoots.currentWinner] == nil then
         msg = msg .. " using a need"
-        --swLootsData.raids[swLootsData.currentRaid].usedNeed[swLoots.currentWinner] = true
         myRaid.usedNeed[swLoots.currentWinner] = true
     end
     swLoots:Communicate(msg .. ".")
     swLootsData.nextLootID = swLootsData.nextLootID + 1
+    
+    --make sure we're associated with this instance
+    local instanceID = swLoots:GetInstanceID()
+    if instanceID > 0 then 
+        swLoots.warningMultipleRaids = false
+        swLoots.warningNotInInstance = false
+    end
+    local found = false
+    for _, id in ipairs(myRaid.instances) do
+        if id == instanceID then found = true end
+    end
+    if found == false then
+        table.insert(myRaid.instances, instanceID)
+    end
 end
 
 function swLoots:AwardItem(str)    
+    --[[Potention change -- I'd rather wait to implement until I can test some other bits
+    local found, _, player, item, need = string.find(str, "^(%a+) (" .. ItemLinkPattern ..") ?(.*)")
+    if found == nil then
+        found, _, item, player, need = string.find(str, "^(" .. ItemLinkPattern .. ") (%a+) ?(.*)")
+        if found == nil then
+            self:Print("Syntax error; awardDirect PlayerName Item [need|greed]")
+        end
+    end
+    if need == nil then need = "greed" end
+    
+    need = string.lower(need)
+    if need ~= "need" and need ~= "greed" then
+        self:Print("Syntax error; awardDirect PlayerName Item [need|greed]")
+    end
+    
+    self.currentItem = item
+    self.currentWinner = player
+    self.winnerRolledNeed = (need == "need")
+    self:Award()
+    ]]--
     local found,_, player, item, need = string.find(str, "^(%a+) (" .. ItemLinkPattern ..") (.*)")
     if found == nil then 
         found, _, player, item = string.find(str, "^(%a+) (" .. ItemLinkPattern ..")")
@@ -435,9 +581,9 @@ function swLoots:AwardItem(str)
 end
 
 function swLoots:Communicate(str)
-    if GetNumRaidMembers() > 0 then
+    if (not swLoots.debug) and GetNumRaidMembers() > 0 then
         SendChatMessage(str, "RAID")
-    elseif GetNumPartyMembers() > 0 then
+    elseif (not swLoots.debug) and GetNumPartyMembers() > 0 then
         SendChatMessage(str, "PARTY")
     else
         self:Print(str)
@@ -489,6 +635,11 @@ function swLoots:SummarizeRaid()
     self:Communicate("Needs used:")
     --for i,j in pairs(swLootsData.raids[swLootsData.currentRaid].usedNeed) do
     for i,j in pairs(myRaid.usedNeed) do
+        self:Communicate("   " .. i)
+    end
+    self:Communicate(" ")
+    self:Communicate("Associated raids:")
+    for _, i in ipairs(myRaid.instances) do
         self:Communicate("   " .. i)
     end
 end
