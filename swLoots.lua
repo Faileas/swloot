@@ -93,7 +93,7 @@ local options = {
             desc = 'Synchronize raid data with another swLoot user',
             usage = '<player> <raid>',
             get = false,
-            set = "Synchronize",
+            set = "SynchronizeRequest",
             validate = function(str)
                 local found, _, raid = string.find(str, "%a+%s+(.+)")
                 return not (found == nil or swLootsData.raids[raid] == nil)
@@ -202,6 +202,10 @@ local options = {
 }
 
 swLoots = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0", "AceComm-2.0")
+
+swLoots.version = 13
+swLoots.versionSyncCompatable = 13
+
 swLoots:RegisterChatCommand("/swloot", options)
 
 --swLootsData is the structure that gets saved between sessions.  No new members should be added to 
@@ -644,17 +648,34 @@ function swLoots:SummarizeRaid()
     end
 end
 
-function swLoots:Synchronize(str)
+swLoots.messageSyncRequest = 1
+swLoots.messageSyncDenied = 2
+swLoots.messageSyncBounceback = 3
+swLoots.messageVersionRequest = 4
+swLoots.messageVersionResponse = 5
+
+function swLoots:SynchronizeRequest(str)
     local a,b,name,raid = string.find(str, "(%a+)%s+(.+)")
-    if not(self:SendCommMessage("WHISPER", name, raid, swLootsData.raids[raid])) then
+    if not(self:WhisperMessage(name, swLoots.messageSyncRequest, raid, swLootsData.raids[raid])) then
         self:Print("An error occured while attempting to synchronize data.")
     end
 end
 
-function swLoots:ReceiveMessage(prefix, sender, distribution, raid, data, bounceback)
+function swLoots:WhisperMessage(sender, message, data1, data2, data3)
+    return self:SendCommMessage("WHISPER", sender, swLoots.version, message, data1, data2, data3)
+end
+
+function swLoots:Synchronize(sender, version, raid, data, bounceback)
+    if version < swLoots.versionSyncCompatable then
+        self:Print(sender .. " attempted to synchronize with an out of date version of swLoot.")
+        self:WhisperMessage(sender, swLoots.messageSyncDenied, "Out of date.")
+        return
+    end
     if bounceback ~= true and swLootsData.trustedUsers[sender] ~= true then
         self:Print("An untrusted user [" .. sender .. "] has attempted to synchronize data.")
-        self:Print("If this was in error, please use the command /swloot addTrustedUser " .. sender .. " to add this player to your trusted list.")
+        self:Print("If this was in error, please use the command /swloot addTrustedUser " 
+                   .. sender .. " to add this player to your trusted list.")
+        self:WhisperMessage(sender, swLoots.messageSyncDenied, "Untrusted user")
         return
     end
     if swLootsData.raids[raid] == nil then
@@ -682,12 +703,30 @@ function swLoots:ReceiveMessage(prefix, sender, distribution, raid, data, bounce
         
         --Now send your data to the other player, so that both raids have the same information
         if bounceback ~= true then
-            if not(self:SendCommMessage("WHISPER", sender, raid, myRaid, true)) then
+            if not(self:WhisperMessage(sender, swLoots.messageSyncBounceback, raid, myRaid)) then
                 self:Print("An error occured while attempting to synchronize data.")
             end
         end
     end
     self:Print("Recieved data from " .. sender .." about raid " .. raid .. ".")
+end
+
+function swLoots:ReceiveMessage(prefix, sender, distribution, version, messageType, raid, data)
+    if messageType == swLoots.messageSyncRequest then
+        swLoots:Synchronize(sender, raid, data, false)
+    elseif messageType == swLoots.messageSyncDenied then
+        self:Print("Your synchronization request was denied by " .. sender .. ".")
+        self:Print("Reason given: " .. raid)
+    elseif messageType == swLoots.messageSyncBounceback then
+        swLoots:Synchronize(sender, raid, data, true)
+    elseif messageType == swLoots.messageVersionRequest then
+        self:WhisperMessage(sender, swLoots.messageVersionResponse)
+    elseif messageType == swLoots.messageVersionResponse then
+        self:Print(sender .. " is using version " .. version .. ".")
+    else
+        self:Print("An unknown message type [" .. messageType .. "] recieved by " .. sender .. ".")
+        self:Print("Version number " .. version)
+    end        
 end
 
 function swLoots:ValidateItemLink(item)
