@@ -616,6 +616,7 @@ function swLoots:SummarizeRaid()
     if swLootsData.currentRaid == nil then 
         self:Print("You are not currently tracking a raid.") 
         --TODO: Isn't there a system function that prints this?
+        --      For that matter, haven't I got something that replaces this outright?
        	for instanceIndex = 1, numInstances do
             local name, ID, remaining = GetSavedInstanceInfo(instanceIndex)
             if name == GetZoneText() then
@@ -645,6 +646,15 @@ function swLoots:SummarizeRaid()
     for _, i in ipairs(myRaid.instances) do
         self:Communicate("   " .. i)
     end
+end
+
+--I hate that this function exists
+--Returns true if val is in table
+function swLoots:ExistsInTable(table, val)
+    for _, i in pairs(table) do
+        if i == val then return true end
+    end
+    return false
 end
 
 swLoots.messageSyncRequest = 1
@@ -698,6 +708,16 @@ function swLoots:Synchronize(sender, version, raid, data, bounceback)
         --then a later synchronization will result in the need being reapplied.
         for player, used in pairs(data.usedNeed) do
             if used == true then myRaid.usedNeed[player] = true end
+        end
+        
+        --associated instances
+        --PS: I'm storing instance IDs in a retarded manner.  Why is this?  Beyond my generally
+        --    lacking knowledge of LUA and its associated data structures, of course.
+        --TODO: Find out if I can use a more intelligent structure...a set would be ideal
+        for _, ID in pairs(data.instances) do
+            if not swLoots:ExistsInTable(myRaid.instances, ID) then 
+                table.insert(myRaid.instances, ID) 
+            end
         end
         
         --Now send your data to the other player, so that both raids have the same information
