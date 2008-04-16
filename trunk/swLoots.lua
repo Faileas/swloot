@@ -202,8 +202,7 @@ local options = {
 }
 
 swLoots = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0", "AceComm-2.0")
-
-swLoots.version = 13
+swLoots.version = 14
 swLoots.versionSyncCompatable = 13
 
 swLoots:RegisterChatCommand("/swloot", options)
@@ -538,7 +537,7 @@ function swLoots:Award()
     
     --make sure we're associated with this instance
     local instanceID = swLoots:GetInstanceID()
-    if instanceID > 0 then 
+    if instanceID ~= nil and instanceID > 0 then 
         swLoots.warningMultipleRaids = false
         swLoots.warningNotInInstance = false
     end
@@ -713,12 +712,12 @@ end
 
 function swLoots:ReceiveMessage(prefix, sender, distribution, version, messageType, raid, data)
     if messageType == swLoots.messageSyncRequest then
-        swLoots:Synchronize(sender, raid, data, false)
+        swLoots:Synchronize(sender, version, raid, data, false)
     elseif messageType == swLoots.messageSyncDenied then
         self:Print("Your synchronization request was denied by " .. sender .. ".")
         self:Print("Reason given: " .. raid)
     elseif messageType == swLoots.messageSyncBounceback then
-        swLoots:Synchronize(sender, raid, data, true)
+        swLoots:Synchronize(sender, version, raid, data, true)
     elseif messageType == swLoots.messageVersionRequest then
         self:WhisperMessage(sender, swLoots.messageVersionResponse)
     elseif messageType == swLoots.messageVersionResponse then
