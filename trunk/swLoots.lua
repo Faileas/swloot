@@ -53,8 +53,24 @@ local options = {
             desc = 'The currently active raid',
             usage = '<name>',
             get = function() return swLootsData.currentRaid end,
-            set = function(name) swLootsData.currentRaid = name end,
+            set = function(name) 
+                swLootsData.previousRaid = swLootsData.currentRaid
+                swLootsData.currentRaid = name 
+                swLoots:Print("Now tracking " .. name);
+            end,
             validate = function(name) return swLootsData.raids[name] ~= nil end,
+        },
+        
+        resumeLastRaid = {
+            type = 'execute',
+            name = 'resumeLastRaid',
+            desc = 'Resumes tracking the last known raid',
+            func = function() 
+                local i = swLootsData.previousRaid
+                swLootsData.previousRaid = swLootsData.currentRaid
+                swLootsData.currentRaid = i
+                swLoots:Print("Now tracking " .. swLootsData.currentRaid)
+            end
         },
         
         deleteRaid = {
@@ -204,11 +220,20 @@ local options = {
                 swLoots:Print(msg)
             end
         },
+        
+        versionQuery = {
+            type = 'text',
+            name = 'versionQuery',
+            desc = 'Queries user for swLoots version',
+            usage = '<player>',
+            get = false,
+            set = function(char) swLoots:WhisperMessage(char, swLoots.messageVersionRequest) end
+        }
     }
 }
 
 swLoots = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0", "AceComm-2.0")
-swLoots.version = 16
+swLoots.version = 17
 swLoots.versionSyncCompatable = 15
 
 swLoots:RegisterChatCommand("/swloot", options)
@@ -243,6 +268,7 @@ swLootsData.raids = {}
 swLootsData.loRoll = 1
 swLootsData.hiRoll = 100
 swLootsData.currentRaid = nil
+swLootsData.previousRaid = nil
 
 --Used by the aceComm library.  Do not change without a really good reason.
 swLoots.commPrefix = "swLoots"
@@ -265,6 +291,9 @@ swLoots.stateEvaluateGreed = 5
 
 --A simple locking mechanism to prevent two rolls from taking place at once.
 swLoots.rollInProgress = false
+
+--Indicates whether or not we are currently recording rolls
+swLoots.recordingRolls = false
 
 --If true, Communicate always prints to the local chat
 swLoots.debug = false
@@ -308,6 +337,12 @@ function swLoots:OnInitialize()
     self:SetCommPrefix(swLoots.commPrefix)
     self:RegisterComm(self.commPrefix, "WHISPER", "ReceiveMessage")
     
+    if swLootsData.currentRaid ~= nil then
+        swLootsData.previousRaid = swLootsData.currentRaid
+        swLootsData.currentRaid = nil
+    end
+    
+    self:RegisterEvent("CHAT_MSG_SYSTEM")
     self:RegisterEvent("UPDATE_INSTANCE_INFO")
 end
 
@@ -330,16 +365,26 @@ function swLoots:UPDATE_INSTANCE_INFO(arg1)
 end
 
 function swLoots:RecordRoll(char, roll, min, max)
+  if not swLoots.recordingRolls then 
+    --We're rolling, but not recording rolls; somebody has rolled out of turn
+    if swLoots.rollInProgress then
+        self:Communicate("Your previous roll was out of turn and was not recorded by swLoots.  " ..
+                         "Please roll again at the proper time; if you believe this to be in " ..
+                         "error please discuss the situation with the Master Looter.", char)
+    end
+    return 
+  end
   if (min == swLootsData.loRoll) and (max == swLootsData.hiRoll) then
     if(swLoots.currentRollers[char]) then
       self:Print(char .. " already rolled")
-      self:Communicate("THAT'S A FUCKING 50 DKP MINUS " .. char .. "!!!")
+      self:Communicate("Roll ignored; Please limit yourself to one roll per item.", char)
     else
       swLoots.currentRollers[char] = roll
     end    
   else
     self:Print(char .. " rolled with a non-standard range [" .. min .. ", " .. max .. "]")
-    self:Communicate("THAT'S A FUCKING 50 DKP MINUS " .. char .. "!!!")
+    self:Communicate("Roll ignored; The proper command is /roll " ..
+                     swLootsData.loRoll .. "-" .. swLootsData.hiRoll, char)
   end
 end
 
@@ -352,11 +397,15 @@ end
 
 function swLoots:StateMachine(state, need, greed)
     if state == swLoots.stateStartNeed then
-        swLoots:Communicate("Need rolls for " .. swLoots.currentItem)
+        self:Communicate("Need rolls for " .. swLoots.currentItem)
+        self.recordingRolls = true
         self:ScheduleEvent(function() self:StateMachine(swLoots.stateNeedCount, need, greed) end, 3)
     elseif state == swLoots.stateNeedCount then
         swLoots:Communicate(need)
-        if need == 0 then state = swLoots.stateEvaluateNeed end
+        if need == 0 then 
+            state = self.stateEvaluateNeed 
+            self.recordingRolls = false
+        end
         self:ScheduleEvent(function() self:StateMachine(state, need-1, greed) end, 1)
     elseif state == swLoots.stateEvaluateNeed then
         local winner, winnerUnusedNeed = swLoots:DetermineWinner()
@@ -373,14 +422,18 @@ function swLoots:StateMachine(state, need, greed)
             swLoots.winnerRolledNeed = true
             swLoots:EndRoll()
         else 
-            self:ScheduleEvent(function() self:StateMachine(swLoots.stateStartGreed, nil, greed) end, 3)
+            self:ScheduleEvent(function() self:StateMachine(swLoots.stateStartGreed, nil, greed) end, 2)
         end
     elseif state == swLoots.stateStartGreed then
-        swLoots:Communicate("Greed rolls for " .. swLoots.currentItem)
+        self:Communicate("Greed rolls for " .. swLoots.currentItem)
+        self.recordingRolls = true
         self:ScheduleEvent(function() self:StateMachine(swLoots.stateGreedCount, nil, greed) end, 3)
     elseif state == swLoots.stateGreedCount then
-        swLoots:Communicate(greed)
-        if greed == 0 then state = swLoots.stateEvaluateGreed end
+        self:Communicate(greed)
+        if greed == 0 then 
+            state = swLoots.stateEvaluateGreed 
+            self.recordingRolls = false
+        end
         self:ScheduleEvent(function() self:StateMachine(state, nil, greed-1) end, 1)
     elseif state == swLoots.stateEvaluateGreed then
         local winner = swLoots:DetermineWinner()
@@ -406,7 +459,6 @@ function swLoots:StartRoll(item)
         PrintRecommendedRaid()
         return
     end
-    self:RegisterEvent("CHAT_MSG_SYSTEM")
     swLoots.currentItem = item
     self:ResetLastRoll()
     swLoots.rollInProgress = true
@@ -422,7 +474,6 @@ function swLoots:StartGreed(item)
         PrintRecommendedRaid()
         return
     end
-    self:RegisterEvent("CHAT_MSG_SYSTEM")
     self.currentItem = item
     self:ResetLastRoll()
     self.rollInProgress = true
@@ -430,7 +481,6 @@ function swLoots:StartGreed(item)
 end
 
 function swLoots:EndRoll()
-    self:UnregisterEvent("CHAT_MSG_SYSTEM")
     for k,v in pairs(swLoots.currentRollers) do
       self:Print(k .. " rolled " .. v)
     end
@@ -594,8 +644,10 @@ function swLoots:AwardItem(str)
     self:Award()
 end
 
-function swLoots:Communicate(str)
-    if (not swLoots.debug) and GetNumRaidMembers() > 0 then
+function swLoots:Communicate(str, player)
+    if player ~= nil then
+        SendChatMessage(str, "WHISPER", "Common", player)
+    elseif (not swLoots.debug) and GetNumRaidMembers() > 0 then
         SendChatMessage(str, "RAID")
     elseif (not swLoots.debug) and GetNumPartyMembers() > 0 then
         SendChatMessage(str, "PARTY")
