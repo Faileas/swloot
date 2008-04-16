@@ -106,7 +106,10 @@ local options = {
             desc = 'Add a user to your trusted list for synchronization purposes',
             usage = '<player>',
             get = false,
-            set = function(name) swLootsData.trustedUsers[name] = true end
+            set = function(name) 
+                swLootsData.trustedUsers[string.lower(name)] = true 
+                swLoots:Print(name .. " added to trusted user list.")
+            end
         },
         
         removeTrusted = {
@@ -115,7 +118,10 @@ local options = {
             desc = 'Removes a user from your trusted list',
             usage = '<player>',
             get = false,
-            set = function(name) swLootsData.trustedUsers[name] = nil end
+            set = function(name) 
+                swLootsData.trustedUsers[string.lower(name)] = nil 
+                swLoots:Print(name .. " removed from trusted user list.")
+            end
         },
         
         awardDirect = {
@@ -202,8 +208,8 @@ local options = {
 }
 
 swLoots = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0", "AceComm-2.0")
-swLoots.version = 14
-swLoots.versionSyncCompatable = 13
+swLoots.version = 16
+swLoots.versionSyncCompatable = 15
 
 swLoots:RegisterChatCommand("/swloot", options)
 
@@ -474,7 +480,8 @@ function swLoots:ValidateTrackedRaid()
     local _, type = IsInInstance()
     if type ~= "party" and type ~= "raid" then
         if swLoots.warningNotInInstance == false then
-            swLoots:Print("You are no inside an instance; are you sure you are tracking the correct raid?")
+            swLoots:Print("You are not inside an instance; are you sure you are tracking the correct raid?")
+            swLoots:Print("If so, repeat the last command and this warning will go away.")
             swLoots.warningNotInInstance = true
             return false
         else 
@@ -497,7 +504,8 @@ function swLoots:ValidateTrackedRaid()
     
     -- We are associated with *an* instance, just not this one.
     if swLoots.warningMultipleRaids == false then
-        swLoots:Print("This raid is not associated with this instance.")
+        swLoots:Print("This raid is not associated with this instance; did you mean to create a new raid?")
+        swLoots:Print("If this is the correct raid, repeat the last command and this warning will go away.")
         swLoots.warningMultipleRaids = true
         return false
     else
@@ -537,10 +545,13 @@ function swLoots:Award()
     
     --make sure we're associated with this instance
     local instanceID = swLoots:GetInstanceID()
-    if instanceID ~= nil and instanceID > 0 then 
-        swLoots.warningMultipleRaids = false
-        swLoots.warningNotInInstance = false
-    end
+    
+    --if we're outside/not saved then don't attempt to associate
+    if instanceID == nil or instanceID == 0 then return end
+    
+    swLoots.warningMultipleRaids = false    
+    swLoots.warningNotInInstance = false
+    
     local found = false
     for _, id in ipairs(myRaid.instances) do
         if id == instanceID then found = true end
@@ -670,19 +681,26 @@ function swLoots:SynchronizeRequest(str)
     end
 end
 
-function swLoots:WhisperMessage(sender, message, data1, data2, data3)
-    return self:SendCommMessage("WHISPER", sender, swLoots.version, message, data1, data2, data3)
+--TODO: Find out what SendCommMessage looks like...can I simplify this function signature?
+function swLoots:WhisperMessage(sender, message, data1, data2, data3, data4, data5, data6)
+    return self:SendCommMessage("WHISPER", sender, swLoots.version, swLoots.versionSyncCompatable,
+                                message, data1, data2, data3, data4, data5, data6)
 end
 
-function swLoots:Synchronize(sender, version, raid, data, bounceback)
+function swLoots:Synchronize(sender, version, compatableVersion, raid, data, bounceback)
     if version < swLoots.versionSyncCompatable then
         self:Print(sender .. " attempted to synchronize with an out of date version of swLoot.")
         self:WhisperMessage(sender, swLoots.messageSyncDenied, "Out of date.")
         return
     end
-    if bounceback ~= true and swLootsData.trustedUsers[sender] ~= true then
+    if swLoots.version < compatableVersion then
+        self:Print(sender .. " attempted to synchronize with a more recent version of swLoot.")
+        self:WhisperMessage(sender, swLoots.messageSyncDenied, "Out of date.")
+        return
+    end
+    if bounceback ~= true and swLootsData.trustedUsers[string.lower(sender)] ~= true then
         self:Print("An untrusted user [" .. sender .. "] has attempted to synchronize data.")
-        self:Print("If this was in error, please use the command /swloot addTrustedUser " 
+        self:Print("If this was in error, please use the command /swloot addTrusted " 
                    .. sender .. " to add this player to your trusted list.")
         self:WhisperMessage(sender, swLoots.messageSyncDenied, "Untrusted user")
         return
@@ -730,14 +748,15 @@ function swLoots:Synchronize(sender, version, raid, data, bounceback)
     self:Print("Recieved data from " .. sender .." about raid " .. raid .. ".")
 end
 
-function swLoots:ReceiveMessage(prefix, sender, distribution, version, messageType, raid, data)
+function swLoots:ReceiveMessage(prefix, sender, distribution, version, versionCompatable, 
+                                messageType, data1, data2, data3, data4, data5, data6)
     if messageType == swLoots.messageSyncRequest then
-        swLoots:Synchronize(sender, version, raid, data, false)
+        swLoots:Synchronize(sender, version, versionCompatable, data1, data2, false)
     elseif messageType == swLoots.messageSyncDenied then
         self:Print("Your synchronization request was denied by " .. sender .. ".")
-        self:Print("Reason given: " .. raid)
+        self:Print("Reason given: " .. data1)
     elseif messageType == swLoots.messageSyncBounceback then
-        swLoots:Synchronize(sender, version, raid, data, true)
+        swLoots:Synchronize(sender, version, data1, data2, true)
     elseif messageType == swLoots.messageVersionRequest then
         self:WhisperMessage(sender, swLoots.messageVersionResponse)
     elseif messageType == swLoots.messageVersionResponse then
