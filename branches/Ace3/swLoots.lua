@@ -1,4 +1,6 @@
-﻿--TODO: Decide when we can clear the warning flag
+﻿--HI THERE.  I'm just experimenting with branches, so that I can figure out how they work.  Don't mind me.
+
+--TODO: Decide when we can clear the warning flag
 --Thoughts: two type of warnings; awarding outside and awarding in wrong instance
 --  awarding outside can be reset when you award something inside
 --  awarding in the wrong instance can be reset when loot is awarded successfully
