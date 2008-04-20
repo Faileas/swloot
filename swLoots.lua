@@ -233,7 +233,7 @@ local options = {
 }
 
 swLoots = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0", "AceComm-2.0")
-swLoots.version = 17
+swLoots.version = 18
 swLoots.versionSyncCompatable = 15
 
 swLoots:RegisterChatCommand("/swloot", options)
@@ -611,36 +611,26 @@ function swLoots:Award()
     end
 end
 
-function swLoots:AwardItem(str)    
-    --[[Potention change -- I'd rather wait to implement until I can test some other bits
-    local found, _, player, item, need = string.find(str, "^(%a+) (" .. ItemLinkPattern ..") ?(.*)")
+function swLoots:AwardItem(str)
+    local found, _, player, item, need = string.find(str, "^(%a+)%s*(" .. ItemLinkPattern ..")%s*(%a*)")
     if found == nil then
-        found, _, item, player, need = string.find(str, "^(" .. ItemLinkPattern .. ") (%a+) ?(.*)")
+        found, _, item, player, need = string.find(str, "^(" .. ItemLinkPattern .. ")%s*(%a+)%s*(%a*)")
         if found == nil then
             self:Print("Syntax error; awardDirect PlayerName Item [need|greed]")
+            return
         end
     end
-    if need == nil then need = "greed" end
+    if need:trim() == "" then need = "greed" end
     
     need = string.lower(need)
     if need ~= "need" and need ~= "greed" then
         self:Print("Syntax error; awardDirect PlayerName Item [need|greed]")
+        return
     end
     
     self.currentItem = item
     self.currentWinner = player
     self.winnerRolledNeed = (need == "need")
-    self:Award()
-    ]]--
-    local found,_, player, item, need = string.find(str, "^(%a+) (" .. ItemLinkPattern ..") (.*)")
-    if found == nil then 
-        found, _, player, item = string.find(str, "^(%a+) (" .. ItemLinkPattern ..")")
-        need = "greed"
-        if(found == nil) then self:Print("error") return end
-    end
-    self.currentItem = item
-    self.currentWinner = player
-    self.winnerRolledNeed = (string.lower(need) == "need")
     self:Award()
 end
 
