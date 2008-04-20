@@ -1,244 +1,324 @@
-﻿--HI THERE.  I'm just experimenting with branches, so that I can figure out how they work.  Don't mind me.
-
---TODO: Decide when we can clear the warning flag
---Thoughts: two type of warnings; awarding outside and awarding in wrong instance
---  awarding outside can be reset when you award something inside
---  awarding in the wrong instance can be reset when loot is awarded successfully
---To sum up: Both can be reset when something is looted inside an instance
-
---TODO: The instanceID code in Award is really dumb
+﻿--TODO: The instanceID code in Award is really dumb
 --Thoughts: Once intarweb work look up lua tables and see what functions are available
 
 local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
+
 local options = {
-    type='group',
-    args = { 
-        roll = { 
-            type = 'text',
-            name = 'roll',
-            desc = 'Begin a roll',
-            usage = '<item>',
+    name = "swLoot",
+    handler = swLoots,
+    type = 'group',
+    args = {        
+        roll = {
+            type = "input",
+            name = "Roll",
+            desc = "Rolls for loot",
+            usage = "<item>",
             get = false,
-            set = "StartRoll",
-            validate = "ValidateItemLink"
+            set = function(info, str) return swLoots:StartRoll(str) end,
+            pattern = ItemLinkPattern,
         },
-        
         greed = {
-            type = 'text',
-            name = 'greed',
+            type = 'input',
+            name = 'Greed',
             desc = 'Begin a greed roll',
             usage = '<item>',
             get = false,
-            set = "StartGreed",
-            validate = "ValidateItemLink"
+            set = function(info, str) return swLoots:StartGreed(str) end,
+            pattern = ItemLinkPattern
         },
         
         award = {
             type = 'execute',
             name = 'award',
             desc = 'Awards item to last winner',
-            func = "Award"
-        },
-        
-        createRaid = {
-            type = 'text',
-            name = 'createRaid',
-            desc = 'Creates a fresh raid',
-            usage = '<name>',
-            get = false,
-            set = "CreateRaid"
-        },
-        
-        currentRaid = {
-            type = 'text',
-            name = 'currentRaid',
-            desc = 'The currently active raid',
-            usage = '<name>',
-            get = function() return swLootsData.currentRaid end,
-            set = function(name) 
-                swLootsData.previousRaid = swLootsData.currentRaid
-                swLootsData.currentRaid = name 
-                swLoots:Print("Now tracking " .. name);
-            end,
-            validate = function(name) return swLootsData.raids[name] ~= nil end,
-        },
-        
-        resumeLastRaid = {
-            type = 'execute',
-            name = 'resumeLastRaid',
-            desc = 'Resumes tracking the last known raid',
-            func = function() 
-                local i = swLootsData.previousRaid
-                swLootsData.previousRaid = swLootsData.currentRaid
-                swLootsData.currentRaid = i
-                swLoots:Print("Now tracking " .. swLootsData.currentRaid)
-            end
-        },
-        
-        deleteRaid = {
-            type = 'text',
-            name = 'deleteRaid',
-            desc = 'Delete a prior raid',
-            usage = '<name>',
-            get = false,
-            set = function(name) swLootsData.raids[name] = nil end
-        },
-        
-        listRaids = {
-            type = 'execute',
-            name = 'listRaids',
-            desc = 'List all known raids',
-            func = function() for i,j in pairs(swLootsData.raids) do swLoots:Print(i) end end
+            func = function(info) return swLoots:Award() end
         },
         
         summarize = {
             type = 'execute',
-            name = 'summarize',
-            desc = 'Summarize the active raid',
-            func = "SummarizeRaid"
+            name = 'SummarizeActive',
+            desc = 'Summarizes the active raid',
+            func = function(info) return swLoots:SummarizeRaid() end
         },
-        
-        debugText = {
-            type = 'execute',
-            name = 'ToggleDebug',
-            desc = 'Toggles between normal operation, and forcing all output to local chat',
-            func = function() swLoots.debug = not swLoots.debug end
-        },
-        
         synchronize = {
-            type = 'text',
-            name = 'synchronize',
+            type = 'input',
+            name = 'Synchronize',
             desc = 'Synchronize raid data with another swLoot user',
             usage = '<player> <raid>',
             get = false,
-            set = "SynchronizeRequest",
-            validate = function(str)
+            set = function(info, str) return swLoots:SynchronizeRequest(str) end,
+            validate = function(info, str)
                 local found, _, raid = string.find(str, "%a+%s+(.+)")
-                return not (found == nil or swLootsData.raids[raid] == nil)
-            end
-        },
-        
-        addTrusted = {
-            type = 'text',
-            name = 'addTrustedUser',
-            desc = 'Add a user to your trusted list for synchronization purposes',
-            usage = '<player>',
-            get = false,
-            set = function(name) 
-                swLootsData.trustedUsers[string.lower(name)] = true 
-                swLoots:Print(name .. " added to trusted user list.")
-            end
-        },
-        
-        removeTrusted = {
-            type = 'text',
-            name = 'removeTrustedUser',
-            desc = 'Removes a user from your trusted list',
-            usage = '<player>',
-            get = false,
-            set = function(name) 
-                swLootsData.trustedUsers[string.lower(name)] = nil 
-                swLoots:Print(name .. " removed from trusted user list.")
-            end
-        },
-        
-        awardDirect = {
-            type = 'text',
-            name = 'awardDirect',
-            desc = 'Award an item without regard to the previous roll',
-            usage = '<player> <item> <need>',
-            get = false,
-            set = "AwardItem"
-        },
-        
-        useNeed = {
-            type = 'text',
-            name = 'useNeed',
-            desc = 'Use a character\'s need roll without actually awarding loot.',
-            usage = '<player>',
-            get = false,
-            set = function(name) 
-                if swLootsData.currentRaid == nil then self:Print("You are not currently tracking a raid.") end
-                swLootsData.raids[swLootsData.currentRaid].usedNeed[name] = true
-            end
-        },
-        
-        freeNeed = {
-            type = 'text',
-            name = 'freeNeed',
-            desc = 'Removes a player\'s need roll [so they can roll need again].',
-            usage = '<player>',
-            get = false,
-            set = function(name)
-                if swLootsData.currentRaid == nil then self:Print("You are not currently tracking a raid.") end
-                swLootsData.raids[swLootsData.currentRaid].usedNeed[name] = nil
-            end
-        },
-        
-        renameRaid = {
-            type = 'text',
-            name = 'renameRaid',
-            desc = 'Renames an existing raid',
-            usage = '<old raid name> <new raid name>',
-            get = false,
-            set = function(str)
-                local found, _, old, new = string.find(str, "(%a+)%s+(.+)")
-                if found == nil then 
-                    self:Print("Incorrect usage [<old raid name> <new raid name>]")
-                    return
+                if found == nil then
+                    return "Bad input; usage: <player> <raid>"
+                elseif swLootsData.raids[raid] == nil then
+                    return "Unrecognized raid name"
+                else
+                    return true
                 end
-                swLoots:Print("Changing raid [" .. old .. "] to [" .. new .. "]")
-                swLootsData.raids[new] = swLootsData.raids[old]
-                swLootsData.raids[old] = nil
-                if swLootsData.currentRaid == old then swLootsData.currentRaid = new end
+            end            
+        },
+        version = {
+            type = 'input',
+            name = 'Version',
+            desc = 'Query swLoot version',
+            get = false,
+            set = function(info, name)
+                if name:trim() == "" then
+                    swLoots:Print("You are using swLoot version " .. swLoots.version)
+                else
+                    swLoots:WhisperMessage(name, "CommunicateVersionRequest")
+                end
             end
         },
-        
-        disqualifyRoll = {
-            type = 'text',
-            name = 'disqualifyRoll',
-            desc = 'Removes a roller from consideration when they roll out of turn',
-            usage = '<player>',
-            get = false,
-            set = function(str)
-                if swLoots.currentRollers[str] == nil then
-                    swLoots:Print(str .. " did not roll.")
-                    return
-                end
-                swLoots.currentRollers[str] = -1 -- (-1) prevents him from rolling again if a roll
-                                                 -- is in progress
-                local msg = str .. " was disqualified. "
-                if swLoots.rollInProgress ~= true then 
-                    local winner, winnerUnusedNeed = swLoots:DetermineWinner()
-                    if winner == nil then
-                        msg = msg .. " However, nobody else rolled."
-                    elseif winner == winnerUnusedNeed or winnerUnusedNeed == nil then
-                        msg = msg .. " The new winner is " .. winner .. "."
-                    else
-                        msg = msg .. " " .. winner .. " rolled highest, but " .. winnerUnusedNeed
-                                  .. " has a need roll remaining."
+        raid = {
+            name = 'Raid',
+            desc = 'Functions for raid manipulation',
+            type = 'group',
+            args = {
+                create = {
+                    type = 'input',
+                    name = 'raidCreate',
+                    desc = 'Creates a fresh raid',
+                    usage = '<name>',
+                    get = false,
+                    set = function(info, str) 
+                        swLootsData.raids[str] = swLoots:CreateEmptyRaid()
+                        swLoots:Print("Created raid: " .. str)
+                    end,
+                    validate = function(info, str) 
+                        if str == "" then return "Enter a name for the new raid" end
+                        if swLootsData.raids[str] ~= nil then 
+                            return "Raid already exists; please delete or use a unique name"
+                        end
+                        return true
                     end
-                end
-                swLoots:Print(msg)
-            end
+                },
+                start = {
+                    type = 'input',
+                    name = 'StartRaid',
+                    desc = 'Begins tracking a raid',
+                    usage = '<name>',
+                    get = false,
+                    set = function(info, str)
+                        if str:trim() == "" then
+                            str = swLootsData.previousRaid
+                        end
+                        if swLootsData.raids[str] == nil then
+                            swLootsData.raids[str] = swLoots:CreateEmptyRaid()
+                        end
+                        swLootsData.previousRaid = swLootsData.currentRaid
+                        swLootsData.currentRaid = str
+                        swLoots:Print("Now tracking " .. str)
+                    end,
+                    validate = function(info, str)
+                        if swLootsData.currentRaid ~= nil then
+                            return "Please finish tracking your current raid before starting a new one"
+                        end
+                        if str:trim() == "" and swLootsData.previousRaid == nil then
+                            return "Please enter a raid name."
+                        end
+                        return true
+                    end
+                },
+                delete = {
+                    type = 'input',
+                    name = 'DeleteRaid',
+                    desc = 'Delete a prior raid',
+                    usage = '<name>',
+                    get = false,
+                    set = function(info, name) 
+                        swLootsData.raids[name] = nil 
+                        swLoots:Print("Deleted raid [" .. name .. "]")
+                    end,
+                    validate = function(info, name)
+                        if swLootsData.raids[name] == nil then
+                            return "Raid does not exist."
+                        end
+                        return true
+                    end
+                },
+                list = {
+                    type = 'execute',
+                    name = 'ListRaids',
+                    desc = 'List all known raids',
+                    func = function(info)
+                        swLoots:Print("Known raids: ")
+                        for i,j in pairs(swLootsData.raids) do
+                            swLoots:Print("    " .. i .. " [" .. j.date .. "]")
+                        end
+                    end
+                },
+                rename = {
+                    type = 'input',
+                    name = 'Rename Raid',
+                    desc = 'Renames an existing raid',
+                    usage = '<old raid name> <new raid name>',
+                    get = false,
+                    set = function(info, str)
+                        local found, _, old, new = string.find(str, "(%a+)%s+(.+)")
+                        swLoots:Print("Changing raid [" .. old .. "] to [" .. new .. "]")
+                        swLootsData.raids[new] = swLootsData.raids[old]
+                        swLootsData.raids[old] = nil
+                        if swLootsData.currentRaid == old then swLootsData.currentRaid = new end
+                    end,
+                    validate = function(info, str)
+                        local found, _, old, new = string.find(str, "(%a+)%s+(.+)")
+                        if found == nil then 
+                            return "Incorrect usage [<old raid name> <new raid name>]"
+                        elseif swLootsData[old] == nil then
+                            return "Unrecognized raid name"
+                        else
+                            return true
+                        end
+                    end
+                },
+            }
         },
-        
-        versionQuery = {
-            type = 'text',
-            name = 'versionQuery',
-            desc = 'Queries user for swLoots version',
-            usage = '<player>',
-            get = false,
-            set = function(char) swLoots:WhisperMessage(char, swLoots.messageVersionRequest) end
-        }
+        debug = {
+            type = 'group',
+            name = 'DebugMenu',
+            desc = 'Functions for debugging the addon',
+            args = {
+                output = {
+                    type = 'select',
+                    name = 'Output',
+                    desc = 'Maximum chat level to print output to',
+                    values = {"raid", "party", "chat"},
+                    get = function(info) return 1 end,
+                    set = function(info, value) swLoots:Print("Not implemented") end
+                },
+            }
+        },
+        trusted = {
+            type = 'group',
+            name = 'Trusted users menu',
+            desc = 'Functions for manipulating the list of trusted users',
+            args = {
+                add = {
+                    type = 'input',
+                    name = 'Add Trusted User',
+                    desc = 'Add a user to your trusted list',
+                    usage = '<player>',
+                    get = false,
+                    set = function(info, name)
+                        swLootsData.trustedUsers[string.lower(name)] = true
+                        swLoots:Print(name .. " added to trusted user list.")
+                    end
+                },
+                remove = {
+                    type = 'input',
+                    name = 'Remove Trusted User',
+                    desc = 'Removes a user from your trusted list',
+                    usage = '<player>',
+                    get = false,
+                    set = function(info, name)
+                        swLootsData.trustedUsers[string.lower(name)] = nil
+                        swLoots:Print(name .. " removed from trusted user list.")
+                    end
+                },
+                list = {
+                    type = 'execute',
+                    name = 'List Trusted Users',
+                    desc = 'Lists all users trusted for synchronization',
+                    func = function(info)
+                        for i,j in pairs(swLootsData.trustedUsers) do
+                            swLoots:Print(i)
+                        end
+                    end
+                },
+            }
+        },
+        loot = {
+            name = 'Loot manipulation',
+            desc = 'Functions that directly manipulate loot distribution',
+            type = 'group',
+            args = {
+                direct = {
+                    type = 'input',
+                    name = 'Award Direct',
+                    desc = 'Award an item without regard to the previous roll',
+                    usage = '<player> <item> [need|greed]',
+                    get = false,
+                    set = function(info, str) return swLoots:AwardItem(str) end
+                },                
+                need = {
+                    type = 'input',
+                    name = 'Change needs',
+                    desc = 'Change the status of a player\'s need roll.',
+                    usage = '<player> [true|false]',
+                    get = false,
+                    set = function(info, str) 
+                        local _, _, player, need = string.find(str, "^(%a+)%s*(%a*)")
+                        local myRaid = swLootsData.raids[swLootsData.currentRaid]
+                        if need:trim() == "" then
+                            if myRaid.usedNeed[player] == nil then
+                                myRaid.usedNeed[player] = true
+                                swLoots:Print(player .. "'s need roll used.")
+                            else
+                                myRaid.usedNeed[player] = nil
+                                swLoots:Print(player .. "'s need roll freed.")
+                            end
+                        elseif need:lower() == "true" then
+                            myRaid.usedNeed[player] = true
+                            swLoots:Print(player .. "'s need roll used.")
+                        elseif need:lower() == "false" then
+                            myRaid.usedNeed[player] = nil
+                            swLoots:Print(player .. "'s need roll freed.")
+                        else
+                            swLoots:Print("Error " .. need)
+                        end
+                    end,
+                    validate = function(info, str)
+                        if swLootsData.currentRaid == nil then 
+                            return "You are not tracking a raid."
+                        end
+                        local found, _, player, need = string.find(str, "^(%a+)%s*(%a*)")
+                        if not found then return "Usage: <player> [true|false] ***" end
+                        if need:trim() == "" or
+                           need:lower() == "true" or
+                           need:lower() == "false" then return true end
+                        return "Usage: <player> [true|false]"
+                    end
+                },
+                disqualify = {
+                    type = 'input',
+                    name = 'Disqualify Roll',
+                    desc = 'Removes a roll from consideration',
+                    usage = '<player>',
+                    get = false,
+                    set = function(info, str)
+                        if swLoots.currentRollers[str] == nil then
+                            swLoots:Print(str .. " did not roll.")
+                            return
+                        end
+                        swLoots.currentRollers[str] = -1 -- (-1) prevents him from rolling again
+                                                         -- if a roll is in progress
+                        local msg = str .. " was disqualified. "
+                        if swLoots.rollInProgress ~= true then 
+                            local winner, winnerUnusedNeed = swLoots:DetermineWinner()
+                            if winner == nil then
+                                msg = msg .. " However, nobody else rolled."
+                            elseif winner == winnerUnusedNeed or winnerUnusedNeed == nil then
+                                msg = msg .. " The new winner is " .. winner .. "."
+                            else
+                                msg = msg .. " " .. winner .. " rolled highest, but "
+                                          .. winnerUsedNeed .. " has a need roll remaining."
+                            end
+                        end
+                        swLoots:Print(msg)
+                    end
+                },
+            }
+        },
     }
 }
 
-swLoots = AceLibrary("AceAddon-2.0"):new("AceConsole-2.0", "AceEvent-2.0", "AceComm-2.0")
-swLoots.version = 17
-swLoots.versionSyncCompatable = 15
-
-swLoots:RegisterChatCommand("/swloot", options)
+swLoots = LibStub("AceAddon-3.0"):NewAddon("swLoot", "AceConsole-3.0", "AceEvent-3.0", 
+                                                     "AceComm-3.0", "AceTimer-3.0",
+                                                     "AceSerializer-3.0")
+swLoots.version = 50
+swLoots.reqVersion = 50
 
 --swLootsData is the structure that gets saved between sessions.  No new members should be added to 
 --it unless you want them to be saved.  Single session data belongs in swLoots
@@ -250,8 +330,6 @@ swLootsData.trustedUsers = {}
 
 --Basically the number of pieces of loot this account has awarded; used to ensure unique IDs while
 --  synchronizing
---WHY ARE YOU NIL
---YOU ARE NOT NIL ANYMORE I FIXED YOU
 swLootsData.nextLootID = 0
 
 --The actual loot information.  The index is the raid ID
@@ -318,6 +396,15 @@ function swLoots:FindRaid()
     return nil
 end
 
+function swLoots:CreateEmptyRaid()
+    local i = {}
+    i.loot = {}
+    i.usedNeed = {}
+    i.instances = {}
+    i.date = date("%Y %b %d")
+    return i
+end
+
 --Returns nil if you are not in an instance; 0 if you are not saved; the instance ID otherwise
 --Here's hoping 0 is not a valid instance ID
 function swLoots:GetInstanceID()
@@ -335,9 +422,12 @@ function swLoots:GetInstanceID()
 end
 
 function swLoots:OnInitialize()
-    self:Print("swLoots successfully initialized.")
-    self:SetCommPrefix(swLoots.commPrefix)
-    self:RegisterComm(self.commPrefix, "WHISPER", "ReceiveMessage")
+    LibStub("AceConfig-3.0"):RegisterOptionsTable("swLoot", options, {"swloot"})
+      
+    self:RegisterComm(self.commPrefix)
+    
+    local str = swLoots:Serialize("TestFunction")
+    self:TestFunction(select(3, self:Deserialize(str)))
     
     if swLootsData.currentRaid ~= nil then
         swLootsData.previousRaid = swLootsData.currentRaid
@@ -346,6 +436,12 @@ function swLoots:OnInitialize()
     
     self:RegisterEvent("CHAT_MSG_SYSTEM")
     self:RegisterEvent("UPDATE_INSTANCE_INFO")
+    self:Print("swLoots successfully initialized.")
+    
+end
+
+function swLoots:TestFunction(arg1)
+    swLoots:Print(arg1)
 end
 
 function swLoots:UPDATE_INSTANCE_INFO(arg1)
@@ -390,8 +486,8 @@ function swLoots:RecordRoll(char, roll, min, max)
   end
 end
 
-function swLoots:CHAT_MSG_SYSTEM(arg1)
-    local start, stop, char, roll, min, max = string.find(arg1, "(%a+) rolls (%d+) %((%d+)-(%d+)%)")
+function swLoots:CHAT_MSG_SYSTEM(arg1, arg2)
+    local start, stop, char, roll, min, max = string.find(arg2, "(%a+) rolls (%d+) %((%d+)-(%d+)%)")
     if(start ~= nil) then
       swLoots:RecordRoll(char, tonumber(roll), tonumber(min), tonumber(max))
     end
@@ -401,14 +497,14 @@ function swLoots:StateMachine(state, need, greed)
     if state == swLoots.stateStartNeed then
         self:Communicate("Need rolls for " .. swLoots.currentItem)
         self.recordingRolls = true
-        self:ScheduleEvent(function() self:StateMachine(swLoots.stateNeedCount, need, greed) end, 3)
+        self:ScheduleTimer(function() self:StateMachine(swLoots.stateNeedCount, need, greed) end, 3)
     elseif state == swLoots.stateNeedCount then
         swLoots:Communicate(need)
         if need == 0 then 
             state = self.stateEvaluateNeed 
             self.recordingRolls = false
         end
-        self:ScheduleEvent(function() self:StateMachine(state, need-1, greed) end, 1)
+        self:ScheduleTimer(function() self:StateMachine(state, need-1, greed) end, 1)
     elseif state == swLoots.stateEvaluateNeed then
         local winner, winnerUnusedNeed = swLoots:DetermineWinner()
         if winner ~= nil then
@@ -424,19 +520,19 @@ function swLoots:StateMachine(state, need, greed)
             swLoots.winnerRolledNeed = true
             swLoots:EndRoll()
         else 
-            self:ScheduleEvent(function() self:StateMachine(swLoots.stateStartGreed, nil, greed) end, 2)
+            self:ScheduleTimer(function() self:StateMachine(swLoots.stateStartGreed, nil, greed) end, 2)
         end
     elseif state == swLoots.stateStartGreed then
         self:Communicate("Greed rolls for " .. swLoots.currentItem)
         self.recordingRolls = true
-        self:ScheduleEvent(function() self:StateMachine(swLoots.stateGreedCount, nil, greed) end, 3)
+        self:ScheduleTimer(function() self:StateMachine(swLoots.stateGreedCount, nil, greed) end, 3)
     elseif state == swLoots.stateGreedCount then
         self:Communicate(greed)
         if greed == 0 then 
             state = swLoots.stateEvaluateGreed 
             self.recordingRolls = false
         end
-        self:ScheduleEvent(function() self:StateMachine(state, nil, greed-1) end, 1)
+        self:ScheduleTimer(function() self:StateMachine(state, nil, greed-1) end, 1)
     elseif state == swLoots.stateEvaluateGreed then
         local winner = swLoots:DetermineWinner()
         if winner ~= nil then
@@ -614,35 +710,26 @@ function swLoots:Award()
 end
 
 function swLoots:AwardItem(str)    
-    --[[Potention change -- I'd rather wait to implement until I can test some other bits
-    local found, _, player, item, need = string.find(str, "^(%a+) (" .. ItemLinkPattern ..") ?(.*)")
+    --[[Potention change -- I'd rather wait to implement until I can test some other bits]]--
+    local found, _, player, item, need = string.find(str, "^(%a+)%s*(" .. ItemLinkPattern ..")%s*(%a*)")
     if found == nil then
-        found, _, item, player, need = string.find(str, "^(" .. ItemLinkPattern .. ") (%a+) ?(.*)")
+        found, _, item, player, need = string.find(str, "^(" .. ItemLinkPattern .. ")%s*(%a+)%s*(%a*)")
         if found == nil then
             self:Print("Syntax error; awardDirect PlayerName Item [need|greed]")
+            return
         end
     end
-    if need == nil then need = "greed" end
+    if need:trim() == "" then need = "greed" end
     
     need = string.lower(need)
     if need ~= "need" and need ~= "greed" then
         self:Print("Syntax error; awardDirect PlayerName Item [need|greed]")
+        return
     end
     
     self.currentItem = item
     self.currentWinner = player
     self.winnerRolledNeed = (need == "need")
-    self:Award()
-    ]]--
-    local found,_, player, item, need = string.find(str, "^(%a+) (" .. ItemLinkPattern ..") (.*)")
-    if found == nil then 
-        found, _, player, item = string.find(str, "^(%a+) (" .. ItemLinkPattern ..")")
-        need = "greed"
-        if(found == nil) then self:Print("error") return end
-    end
-    self.currentItem = item
-    self.currentWinner = player
-    self.winnerRolledNeed = (string.lower(need) == "need")
     self:Award()
 end
 
@@ -722,41 +809,68 @@ function swLoots:ExistsInTable(table, val)
     return false
 end
 
-swLoots.messageSyncRequest = 1
-swLoots.messageSyncDenied = 2
-swLoots.messageSyncBounceback = 3
-swLoots.messageVersionRequest = 4
-swLoots.messageVersionResponse = 5
-
 function swLoots:SynchronizeRequest(str)
     local a,b,name,raid = string.find(str, "(%a+)%s+(.+)")
-    if not(self:WhisperMessage(name, swLoots.messageSyncRequest, raid, swLootsData.raids[raid])) then
+    if not self:WhisperMessage(name, "CommunicateSyncRequest", 
+                               self.version, self.reqVersion, raid, swLootsData.raids[raid]) then
         self:Print("An error occured while attempting to synchronize data.")
     end
 end
 
---TODO: Find out what SendCommMessage looks like...can I simplify this function signature?
-function swLoots:WhisperMessage(sender, message, data1, data2, data3, data4, data5, data6)
-    return self:SendCommMessage("WHISPER", sender, swLoots.version, swLoots.versionSyncCompatable,
-                                message, data1, data2, data3, data4, data5, data6)
+function swLoots:OnCommReceived(prefix, message, group, sender)
+    self:ParseCommunication(sender, group, select(2, self:Deserialize(message)))
 end
 
-function swLoots:Synchronize(sender, version, compatableVersion, raid, data, bounceback)
-    if version < swLoots.versionSyncCompatable then
+function swLoots:ParseCommunication(sender, group, command, ...)
+    if self[command] == nil then
+        self:Print("An unknown message type [" .. command .. "] recieved by " .. sender .. ".")
+        return
+    end
+    
+    self[command](self, sender, group, ...)
+end
+
+function swLoots:CommunicateSyncRequest(sender, group, version, reqVersion, raidName, raidData)
+    if version < swLoots.reqVersion then
         self:Print(sender .. " attempted to synchronize with an out of date version of swLoot.")
-        self:WhisperMessage(sender, swLoots.messageSyncDenied, "Out of date.")
+        self:WhisperMessage(sender, "CommunicateSyncDenied", "Target version out of date.")
         return
     end
-    if swLoots.version < compatableVersion then
+    if swLoots.version < reqVersion then
         self:Print(sender .. " attempted to synchronize with a more recent version of swLoot.")
-        self:WhisperMessage(sender, swLoots.messageSyncDenied, "Out of date.")
+        self:WhisperMessage(sender, "CommunicateSyncDenied", "Target version more recent.")
         return
     end
+    self:Synchronize(sender, raidName, raidData, false)
+end
+
+function swLoots:CommunicateSyncDenied(sender, group, reason)
+        self:Print("Your synchronization request was denied by " .. sender .. ".")
+        self:Print("Reason given: " .. reason)
+end
+
+function swLoots:CommunicateSyncBounceback(sender, group, raidName, raidData)
+    self:Synchronize(sender, raidName, raidData, true)
+end
+
+function swLoots:CommunicateVersionRequest(sender, group)
+    self:WhisperMessage(sender, "CommunicateVersionResponse", self.version)
+end
+
+function swLoots:CommunicateVersionResponse(sender, group, version)
+        self:Print(sender .. " is using version " .. version .. ".")
+end
+function swLoots:WhisperMessage(sender, message, ...)
+    self:SendCommMessage(self.commPrefix, self:Serialize(message, ...), "WHISPER", sender)
+    return true --I don't think SendCommMessage has a return value anymore
+end
+
+function swLoots:Synchronize(sender, raid, data, bounceback)
     if bounceback ~= true and swLootsData.trustedUsers[string.lower(sender)] ~= true then
         self:Print("An untrusted user [" .. sender .. "] has attempted to synchronize data.")
         self:Print("If this was in error, please use the command /swloot addTrusted " 
                    .. sender .. " to add this player to your trusted list.")
-        self:WhisperMessage(sender, swLoots.messageSyncDenied, "Untrusted user")
+        self:WhisperMessage(sender, "CommunicateSyncDenied", "Untrusted user")
         return
     end
     if swLootsData.raids[raid] == nil then
@@ -794,31 +908,12 @@ function swLoots:Synchronize(sender, version, compatableVersion, raid, data, bou
         
         --Now send your data to the other player, so that both raids have the same information
         if bounceback ~= true then
-            if not(self:WhisperMessage(sender, swLoots.messageSyncBounceback, raid, myRaid)) then
+            if not(self:WhisperMessage(sender, "CommunicateSyncBounceback", raid, myRaid)) then
                 self:Print("An error occured while attempting to synchronize data.")
             end
         end
     end
     self:Print("Recieved data from " .. sender .." about raid " .. raid .. ".")
-end
-
-function swLoots:ReceiveMessage(prefix, sender, distribution, version, versionCompatable, 
-                                messageType, data1, data2, data3, data4, data5, data6)
-    if messageType == swLoots.messageSyncRequest then
-        swLoots:Synchronize(sender, version, versionCompatable, data1, data2, false)
-    elseif messageType == swLoots.messageSyncDenied then
-        self:Print("Your synchronization request was denied by " .. sender .. ".")
-        self:Print("Reason given: " .. data1)
-    elseif messageType == swLoots.messageSyncBounceback then
-        swLoots:Synchronize(sender, version, data1, data2, true)
-    elseif messageType == swLoots.messageVersionRequest then
-        self:WhisperMessage(sender, swLoots.messageVersionResponse)
-    elseif messageType == swLoots.messageVersionResponse then
-        self:Print(sender .. " is using version " .. version .. ".")
-    else
-        self:Print("An unknown message type [" .. messageType .. "] recieved by " .. sender .. ".")
-        self:Print("Version number " .. version)
-    end        
 end
 
 function swLoots:ValidateItemLink(item)
