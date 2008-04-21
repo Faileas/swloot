@@ -318,8 +318,9 @@ swLoots = LibStub("AceAddon-3.0"):NewAddon("swLoot", "AceConsole-3.0", "AceEvent
                                                      "AceComm-3.0", "AceTimer-3.0",
                                                      "AceSerializer-3.0")
 
-swLoots.version = tonumber(strmatch("%d+", "$Revision$"))
-swLoots.reqVersion = 50
+-- +100 keeps me from being able to converse with lesser mortals and the normal version
+swLoots.version = 100 + tonumber(strmatch("$Revision$", "%d+"))
+swLoots.reqVersion = 100
 
 --swLootsData is the structure that gets saved between sessions.  No new members should be added to 
 --it unless you want them to be saved.  Single session data belongs in swLoots
