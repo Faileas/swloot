@@ -317,7 +317,8 @@ local options = {
 swLoots = LibStub("AceAddon-3.0"):NewAddon("swLoot", "AceConsole-3.0", "AceEvent-3.0", 
                                                      "AceComm-3.0", "AceTimer-3.0",
                                                      "AceSerializer-3.0")
-swLoots.version = 50
+
+swLoots.version = tonumber(strmatch("%d+", "$Revision$"))
 swLoots.reqVersion = 50
 
 --swLootsData is the structure that gets saved between sessions.  No new members should be added to 
