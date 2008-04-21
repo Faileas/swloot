@@ -1,8 +1,7 @@
 Dennis's list of things he wants to see happen
 
-** See about making awardDirect use [item player] as well as [player item] (next revision)
--- Get synchronization working
+-- Get synchronization working <-- Almost done
 -- Shard rolls, pref w/ interface
 -- More output options [notably summarizing to party/self regardless of group composition]
 -- Interface <<<
--- clean up command line commands [group some up]
+-- clean up command line commands [group some up] <--Done in Ace3 branch
