@@ -184,9 +184,9 @@ local options = {
                     type = 'select',
                     name = 'Output',
                     desc = 'Maximum chat level to print output to',
-                    values = {"raid", "party", "chat"},
-                    get = function(info) return 1 end,
-                    set = function(info, value) swLoots:Print("Not implemented") end
+                    values = {raid = "raid", party = "party", chat = "chat"},
+                    get = function(info) return swLoots.debug end,
+                    set = function(info, value) swLoots.debug = value swLoots:Print(value) end
                 },
             }
         },
@@ -318,9 +318,11 @@ swLoots = LibStub("AceAddon-3.0"):NewAddon("swLoot", "AceConsole-3.0", "AceEvent
                                                      "AceComm-3.0", "AceTimer-3.0",
                                                      "AceSerializer-3.0")
 
--- +100 keeps me from being able to converse with lesser mortals and the normal version
-swLoots.version = 100 + tonumber(strmatch("$Revision$", "%d+"))
-swLoots.reqVersion = 100
+swLoots.version = tonumber(strmatch("$Revision$", "%d+"))
+swLoots.reqVersion = swLoots.version --Beta release; no talking with old betas
+
+--Used by the aceComm library.  Do not change without a really good reason.
+swLoots.commPrefix = "swLootsBeta"
 
 --swLootsData is the structure that gets saved between sessions.  No new members should be added to 
 --it unless you want them to be saved.  Single session data belongs in swLoots
@@ -341,8 +343,10 @@ swLootsData.nextLootID = 0
 -- raids[ID].loot[ID'].player is the winner's name
 
 --These fields are not yet used:
--- raids[ID].instances is an array of instance IDs that have been awarded loot
--- raids[ID].date is the date when the raid was started
+--  raids[ID].instances is an array of instance IDs that have been awarded loot
+--  raids[ID].date is the date when the raid was started
+--  raids[ID].offset is the time difference between the local clock and the 
+--                   machine that created the raid
 swLootsData.raids = {}
 
 --These define the acceptable roll range.  Eventually, I should like to make this variable, hense
@@ -351,9 +355,6 @@ swLootsData.loRoll = 1
 swLootsData.hiRoll = 100
 swLootsData.currentRaid = nil
 swLootsData.previousRaid = nil
-
---Used by the aceComm library.  Do not change without a really good reason.
-swLoots.commPrefix = "swLoots"
 
 --This is information used by the roll tracker.  
 --currentRollers[Player] is the roll made by Player
@@ -377,8 +378,8 @@ swLoots.rollInProgress = false
 --Indicates whether or not we are currently recording rolls
 swLoots.recordingRolls = false
 
---If true, Communicate always prints to the local chat
-swLoots.debug = false
+--Maximum level Communicate will print to
+swLoots.debug = "raid"
 
 swLoots.warningMultipleRaids = false
 swLoots.warningNotInInstance = false
@@ -738,9 +739,9 @@ end
 function swLoots:Communicate(str, player)
     if player ~= nil then
         SendChatMessage(str, "WHISPER", "Common", player)
-    elseif (not swLoots.debug) and GetNumRaidMembers() > 0 then
+    elseif swLoots.debug == "raid" and GetNumRaidMembers() > 0 then
         SendChatMessage(str, "RAID")
-    elseif (not swLoots.debug) and GetNumPartyMembers() > 0 then
+    elseif swLoots.debug ~= "chat" and GetNumPartyMembers() > 0 then
         SendChatMessage(str, "PARTY")
     else
         self:Print(str)
