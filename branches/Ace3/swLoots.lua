@@ -188,6 +188,14 @@ local options = {
                     get = function(info) return swLoots.debug end,
                     set = function(info, value) swLoots.debug = value swLoots:Print(value) end
                 },
+                
+                verbose = {
+                    type = 'toggle',
+                    name = 'Verbose output',
+                    desc = 'Enables additional information to be printed',
+                    get = function(info) return swLoots.verbose end,
+                    set = function(info, value) swLoots.verbose = value end
+                },
             }
         },
         trusted = {
@@ -251,19 +259,38 @@ local options = {
                     set = function(info, str) 
                         local _, _, player, need = string.find(str, "^(%a+)%s*(%a*)")
                         local myRaid = swLootsData.raids[swLootsData.currentRaid]
+                        local myNeed = myRaid.usedNeed[player]
                         if need:trim() == "" then
-                            if myRaid.usedNeed[player] == nil then
-                                myRaid.usedNeed[player] = true
+                            if myNeed == nil then
+                                myRaid.usedNeed[player] = {
+                                    used = true,
+                                    timestamp = swLoots:CreateTimestamp(myRaid)
+                                }
                                 swLoots:Print(player .. "'s need roll used.")
-                            else
-                                myRaid.usedNeed[player] = nil
+                            elseif myNeed.used == true then
+                                myRaid.usedNeed[player] = {
+                                    used = false,
+                                    timestamp = swLoots:CreateTimestamp(myRaid)
+                                }
                                 swLoots:Print(player .. "'s need roll freed.")
+                            else
+                                myRaid.usedNeed[player] = {
+                                    used = true,
+                                    timestamp = swLoots:CreateTimestamp(myRaid)
+                                }
+                                swLoots:Print(player .. "'s need roll used.")
                             end
                         elseif need:lower() == "true" then
-                            myRaid.usedNeed[player] = true
+                            myRaid.usedNeed[player] = {
+                                used = true,
+                                timestamp = swLoots:CreateTimestamp(myRaid)
+                            }
                             swLoots:Print(player .. "'s need roll used.")
                         elseif need:lower() == "false" then
-                            myRaid.usedNeed[player] = nil
+                            myRaid.usedNeed[player] = {
+                                used = false,
+                                timestamp = swLoots:CreateTimestamp(myRaid)
+                            }
                             swLoots:Print(player .. "'s need roll freed.")
                         else
                             swLoots:Print("Error " .. need)
@@ -380,6 +407,7 @@ swLoots.recordingRolls = false
 
 --Maximum level Communicate will print to
 swLoots.debug = "raid"
+swLoots.verbose = false
 
 swLoots.warningMultipleRaids = false
 swLoots.warningNotInInstance = false
@@ -404,7 +432,8 @@ function swLoots:CreateEmptyRaid()
     i.loot = {}
     i.usedNeed = {}
     i.instances = {}
-    i.date = date("%Y %b %d")
+    i.date = date("*t")
+    i.offset = 0
     return i
 end
 
@@ -598,7 +627,9 @@ function swLoots:DetermineWinner()
             winner = k 
             roll = v 
         end
-        if swLootsData.raids[swLootsData.currentRaid].usedNeed[k] == nil and v > rollUnusedNeed then
+        local myRaid = swLootsData.raids[swLootsData.currentRaid]
+        --if swLootsData.raids[swLootsData.currentRaid].usedNeed[k] == nil and v > rollUnusedNeed then
+        if (myRaid.usedNeed[k] == nil or myRaid.usedNeed[k].used == false) and v > rollUnusedNeed then
             winnerUnusedNeed = k
             rollUnusedNeed = v
         end
@@ -685,11 +716,16 @@ function swLoots:Award()
     myRaid.loot[lootID] = {}
     myRaid.loot[lootID].item = swLoots.currentItem
     myRaid.loot[lootID].winner = swLoots.currentWinner
+    myRaid.loot[lootID].deleted = false
+    myRaid.loot[lootID].timestamp = swLoots:CreateTimestamp(myRaid)
     
     local msg = swLoots.currentWinner .. " awarded " .. swLoots.currentItem
     if swLoots.winnerRolledNeed == true and myRaid.usedNeed[swLoots.currentWinner] == nil then
         msg = msg .. " using a need"
-        myRaid.usedNeed[swLoots.currentWinner] = true
+        --myRaid.usedNeed[swLoots.currentWinner] = true
+        myRaid.usedNeed[swLoots.currentWinner] = {}
+        myRaid.usedNeed[swLoots.currentWinner].used = true
+        myRaid.usedNeed[swLoots.currentWinner].timestamp = swLoots:CreateTimestamp(myRaid)
     end
     swLoots:Communicate(msg .. ".")
     swLootsData.nextLootID = swLootsData.nextLootID + 1
@@ -712,8 +748,7 @@ function swLoots:Award()
     end
 end
 
-function swLoots:AwardItem(str)    
-    --[[Potention change -- I'd rather wait to implement until I can test some other bits]]--
+function swLoots:AwardItem(str)
     local found, _, player, item, need = string.find(str, "^(%a+)%s*(" .. ItemLinkPattern ..")%s*(%a*)")
     if found == nil then
         found, _, item, player, need = string.find(str, "^(" .. ItemLinkPattern .. ")%s*(%a+)%s*(%a*)")
@@ -754,19 +789,6 @@ function swLoots:ResetLastRoll()
     swLoots.winnerRolledNeed = false
 end
 
-function swLoots:CreateRaid(name)
-    if swLootsData.raids[name] ~= nil then 
-        self:Print("Raid already exists; please delete or use a unique name")
-    else
-        swLootsData.raids[name] = {}
-        swLootsData.raids[name].loot = {}
-        swLootsData.raids[name].usedNeed = {}
-        swLootsData.raids[name].instances = {}
-        swLootsData.raids[name].date = date("%Y %b %d")
-        self:Print("Created raid: " .. name)
-    end
-end
-
 function swLoots:SummarizeRaid()
     if swLootsData.currentRaid == nil then 
         self:Print("You are not currently tracking a raid.") 
@@ -783,23 +805,39 @@ function swLoots:SummarizeRaid()
     self:Communicate("Currently active raid: " .. swLootsData.currentRaid)
     local myRaid = swLootsData.raids[swLootsData.currentRaid]
     
-    if myRaid.date ~= nil then self:Communicate("Created on: " .. myRaid.date) end
+    if myRaid.date ~= nil then self:Communicate("Created on: " .. date("%c", time(myRaid.date))) end
     self:Communicate("Awarded gear:")
     --for i,j in pairs(swLootsData.raids[swLootsData.currentRaid].loot) do
     for i,j in pairs(myRaid.loot) do
         --self:Communicate("   " .. i .. " -- " .. j)
-        self:Communicate("   " .. j.item .. " -- " .. j.winner)
+        if j.deleted == false then
+            if swLoots.verbose then
+                self:Communicate("   " .. j.item .. " -- " .. j.winner .. " [" .. SecondsToTime(j.timestamp) .. "]")
+            else
+                self:Communicate("   " .. j.item .. " -- " .. j.winner)
+            end
+        elseif swLoots.verbose then
+            self:Communicate("   [D] " .. j.item .. " -- " .. j.winner .. " [" .. SecondsToTime(j.timestamp) .. "]")
+        end
     end
     self:Communicate(" ")
     self:Communicate("Needs used:")
     --for i,j in pairs(swLootsData.raids[swLootsData.currentRaid].usedNeed) do
     for i,j in pairs(myRaid.usedNeed) do
-        self:Communicate("   " .. i)
+        if j.used == true then
+            if swLoots.verbose then
+                self:Communicate("   " .. i .. " [" .. SecondsToTime(j.timestamp) .. "]")
+            else
+                self:Communicate("   " .. i)
+            end
+        end
     end
-    self:Communicate(" ")
-    self:Communicate("Associated raids:")
-    for _, i in ipairs(myRaid.instances) do
-        self:Communicate("   " .. i)
+    if swLoots.verbose then
+        self:Communicate(" ")
+        self:Communicate("Associated raids:")
+        for _, i in ipairs(myRaid.instances) do
+            self:Communicate("   " .. i)
+        end
     end
 end
 
@@ -833,7 +871,7 @@ function swLoots:ParseCommunication(sender, group, command, ...)
     self[command](self, sender, group, ...)
 end
 
-function swLoots:CommunicateSyncRequest(sender, group, version, reqVersion, raidName, raidData)
+function swLoots:CommunicateSyncRequest(sender, group, version, reqVersion, raidName, raidData, time)
     if version < swLoots.reqVersion then
         self:Print(sender .. " attempted to synchronize with an out of date version of swLoot.")
         self:WhisperMessage(sender, "CommunicateSyncDenied", "Target version out of date.")
@@ -844,7 +882,7 @@ function swLoots:CommunicateSyncRequest(sender, group, version, reqVersion, raid
         self:WhisperMessage(sender, "CommunicateSyncDenied", "Target version more recent.")
         return
     end
-    self:Synchronize(sender, raidName, raidData, false)
+    self:Synchronize(sender, raidName, raidData, time, false)
 end
 
 function swLoots:CommunicateSyncDenied(sender, group, reason)
@@ -863,12 +901,13 @@ end
 function swLoots:CommunicateVersionResponse(sender, group, version)
         self:Print(sender .. " is using version " .. version .. ".")
 end
+
 function swLoots:WhisperMessage(sender, message, ...)
     self:SendCommMessage(self.commPrefix, self:Serialize(message, ...), "WHISPER", sender)
     return true --I don't think SendCommMessage has a return value anymore
 end
 
-function swLoots:Synchronize(sender, raid, data, bounceback)
+function swLoots:Synchronize(sender, raid, data, time, bounceback)
     if bounceback ~= true and swLootsData.trustedUsers[string.lower(sender)] ~= true then
         self:Print("An untrusted user [" .. sender .. "] has attempted to synchronize data.")
         self:Print("If this was in error, please use the command /swloot addTrusted " 
@@ -879,24 +918,52 @@ function swLoots:Synchronize(sender, raid, data, bounceback)
     if swLootsData.raids[raid] == nil then
         --we do not know anything about this raid, so just copy his data
         swLootsData.raids[raid] = data
+        
+        --calculate an appropriate offset
+        --otherOffset = otherTimeWhenCreated - data.time
+        --myOffset = myTimeWhenCreated - data.time
+        --tmpOffset = myTime - otherTime
+        --date.time + otherOffset + tmpOffset = myTimeWhenCreated
+        --myOffset = otherOffset + tmpOffset
+        swLoots.Data.raids[raid].offset = data.offset + (time() - time)
     else
         --we do know about this raid, so merge in loot and usedNeed
         local myRaid = swLootsData.raids[raid]
         --loot first
         for ID, loot in pairs(data.loot) do
-            if myRaid.loot[ID] == nil then 
+            local myLoot = myRaid.loot[ID]
+            if myLoot == nil then 
                 self:Print("adding " .. loot.item .. " and awarding to " .. loot.winner .. ".")
                 myRaid.loot[ID] = {}
                 myRaid.loot[ID].item = loot.item
                 myRaid.loot[ID].winner = loot.winner
+                myRaid.loot[ID].winner = loot.timestamp
+                myRaid.loot[ID].deleted = loot.deleted
+            elseif myLoot.deleted ~= loot.deleted then
+                if myLoot.timestamp < loot.timestamp then
+                    myLoot.deleted = loot.deleted
+                end
+            elseif myLoot.timestamp > loot.timestamp then
+                myLoot.timestamp = loot.timestamp
             end
         end
         
-        --now needs.  Assumption is that if either person believes a need has been used, then a need
-        --has been used.  This means that if a need is revoked but only one player is made aware,
-        --then a later synchronization will result in the need being reapplied.
-        for player, used in pairs(data.usedNeed) do
-            if used == true then myRaid.usedNeed[player] = true end
+        --now needs.  Assumption is that the more recent timestamp is the accurate one
+        for player, need in pairs(data.usedNeed) do
+            --need is a table [used, timestamp]
+            --  if used and myUsed are different
+            --     if myTimestamp > data.timestamp copy over data
+            --  otherwise if myTimestamp < data.timestamp copy over timestamp
+            local myNeed = myRaid.usedNeed[player]
+            if myNeed == nil then
+                myRaid.usedNeed[player] = need
+            elseif myNeed.used ~= need.used then
+                if myNeed.timestamp < need.timestamp then
+                    myRaid.usedNeed[player] = need
+                end
+            elseif myNeed.timestamp > need.timestamp then
+                myNeed.timestamp = need.timestamp
+            end
         end
         
         --associated instances
@@ -921,4 +988,8 @@ end
 
 function swLoots:ValidateItemLink(item)
     return string.find(item, "^" .. ItemLinkPattern .. "$") ~= nil 
+end
+
+function swLoots:CreateTimestamp(raid)
+    return raid.offset + (time() - time(raid.date))
 end
