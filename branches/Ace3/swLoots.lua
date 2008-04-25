@@ -853,7 +853,7 @@ end
 function swLoots:SynchronizeRequest(str)
     local a,b,name,raid = string.find(str, "(%a+)%s+(.+)")
     if not self:WhisperMessage(name, "CommunicateSyncRequest", 
-                               self.version, self.reqVersion, raid, swLootsData.raids[raid]) then
+                               self.version, self.reqVersion, raid, swLootsData.raids[raid], time()) then
         self:Print("An error occured while attempting to synchronize data.")
     end
 end
@@ -890,8 +890,8 @@ function swLoots:CommunicateSyncDenied(sender, group, reason)
         self:Print("Reason given: " .. reason)
 end
 
-function swLoots:CommunicateSyncBounceback(sender, group, raidName, raidData)
-    self:Synchronize(sender, raidName, raidData, true)
+function swLoots:CommunicateSyncBounceback(sender, group, raidName, raidData, time)
+    self:Synchronize(sender, raidName, raidData, time, true)
 end
 
 function swLoots:CommunicateVersionRequest(sender, group)
@@ -907,7 +907,7 @@ function swLoots:WhisperMessage(sender, message, ...)
     return true --I don't think SendCommMessage has a return value anymore
 end
 
-function swLoots:Synchronize(sender, raid, data, time, bounceback)
+function swLoots:Synchronize(sender, raid, data, timez, bounceback)
     if bounceback ~= true and swLootsData.trustedUsers[string.lower(sender)] ~= true then
         self:Print("An untrusted user [" .. sender .. "] has attempted to synchronize data.")
         self:Print("If this was in error, please use the command /swloot addTrusted " 
@@ -925,7 +925,7 @@ function swLoots:Synchronize(sender, raid, data, time, bounceback)
         --tmpOffset = myTime - otherTime
         --date.time + otherOffset + tmpOffset = myTimeWhenCreated
         --myOffset = otherOffset + tmpOffset
-        swLoots.Data.raids[raid].offset = data.offset + (time() - time)
+        swLoots.Data.raids[raid].offset = data.offset + (time() - timez)
     else
         --we do know about this raid, so merge in loot and usedNeed
         local myRaid = swLootsData.raids[raid]
@@ -978,7 +978,7 @@ function swLoots:Synchronize(sender, raid, data, time, bounceback)
         
         --Now send your data to the other player, so that both raids have the same information
         if bounceback ~= true then
-            if not(self:WhisperMessage(sender, "CommunicateSyncBounceback", raid, myRaid)) then
+            if not(self:WhisperMessage(sender, "CommunicateSyncBounceback", raid, myRaid, time())) then
                 self:Print("An error occured while attempting to synchronize data.")
             end
         end
