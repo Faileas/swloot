@@ -963,14 +963,16 @@ function swLoots:Synchronize(sender, raid, data, timez, bounceback)
                 myRaid.loot[ID] = {}
                 myRaid.loot[ID].item = loot.item
                 myRaid.loot[ID].winner = loot.winner
-                myRaid.loot[ID].winner = loot.timestamp
+                myRaid.loot[ID].timestamp = loot.timestamp
                 myRaid.loot[ID].deleted = loot.deleted
             elseif myLoot.deleted ~= loot.deleted then
                 if myLoot.timestamp < loot.timestamp then
                     myLoot.deleted = loot.deleted
                 end
-            elseif myLoot.timestamp > loot.timestamp then
-                myLoot.timestamp = loot.timestamp
+            else
+                if myLoot.timestamp > loot.timestamp then
+                    myLoot.timestamp = loot.timestamp
+                end
             end
         end
         
