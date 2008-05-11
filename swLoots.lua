@@ -121,6 +121,20 @@ local options = {
                         return true
                     end
                 },
+                stop = {
+                    type = 'execute',
+                    name = 'StopRaid',
+                    desc = 'Stop tracking the current raid',
+                    func = function(info)
+                        if swLootsData.currentRaid == nil then
+                            swLoots:Print("Not currently tracking any raid.")
+                        else
+                            swLootsData.previousRaid = swLootsData.currentRaid
+                            swLootsData.currentRaid = nil
+                            swLoots:Print("No longer tracking " .. swLootsData.previousRaid)
+                        end
+                    end
+                },
                 delete = {
                     type = 'input',
                     name = 'DeleteRaid',
@@ -145,7 +159,7 @@ local options = {
                     func = function(info)
                         swLoots:Print("Known raids: ")
                         for i,j in pairs(swLootsData.raids) do
-                            swLoots:Print("    " .. i .. " [" .. j.date .. "]")
+                            swLoots:Print("    " .. i .. " [" .. date("%c", time(j.date)) .. "]")
                         end
                     end
                 },
@@ -562,10 +576,10 @@ function swLoots:StateMachine(state, need, greed)
         self:Communicate(greed)
         if greed == 0 then 
             state = swLoots.stateEvaluateGreed 
-            self.recordingRolls = false
         end
         self:ScheduleTimer(function() self:StateMachine(state, nil, greed-1) end, 1)
     elseif state == swLoots.stateEvaluateGreed then
+        self.recordingRolls = false
         local winner = swLoots:DetermineWinner()
         if winner ~= nil then
             swLoots:Communicate(winner .. " won " .. swLoots.currentItem .. " on a greed.")
@@ -925,7 +939,7 @@ function swLoots:Synchronize(sender, raid, data, timez, bounceback)
         --tmpOffset = myTime - otherTime
         --date.time + otherOffset + tmpOffset = myTimeWhenCreated
         --myOffset = otherOffset + tmpOffset
-        swLoots.Data.raids[raid].offset = data.offset + (time() - timez)
+        swLootsData.raids[raid].offset = data.offset + (time() - timez)
     else
         --we do know about this raid, so merge in loot and usedNeed
         local myRaid = swLootsData.raids[raid]
