@@ -1019,5 +1019,5 @@ function swLoots:ValidateItemLink(item)
 end
 
 function swLoots:CreateTimestamp(raid)
-    return raid.offset - (time() - time(raid.date))
+    return (time() - time(raid.date)) - raid.offset
 end
