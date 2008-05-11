@@ -824,14 +824,20 @@ function swLoots:SummarizeRaid()
     --for i,j in pairs(swLootsData.raids[swLootsData.currentRaid].loot) do
     for i,j in pairs(myRaid.loot) do
         --self:Communicate("   " .. i .. " -- " .. j)
+        local timestamp
+        if j.timestamp < 0 then
+            timestamp = SecondsToTime(-j.timestamp)
+        else
+            timestamp = SecondsToTime(j.timestamp)
+        end
         if j.deleted == false then
             if swLoots.verbose then
-                self:Communicate("   " .. j.item .. " -- " .. j.winner .. " [" .. SecondsToTime(j.timestamp) .. "]")
+                self:Communicate("   " .. j.item .. " -- " .. j.winner .. " [" .. timestamp .. "]")
             else
                 self:Communicate("   " .. j.item .. " -- " .. j.winner)
             end
         elseif swLoots.verbose then
-            self:Communicate("   [D] " .. j.item .. " -- " .. j.winner .. " [" .. SecondsToTime(j.timestamp) .. "]")
+            self:Communicate("   [D] " .. j.item .. " -- " .. j.winner .. " [" .. timestamp .. "]")
         end
     end
     self:Communicate(" ")
@@ -840,7 +846,13 @@ function swLoots:SummarizeRaid()
     for i,j in pairs(myRaid.usedNeed) do
         if j.used == true then
             if swLoots.verbose then
-                self:Communicate("   " .. i .. " [" .. SecondsToTime(j.timestamp) .. "]")
+                local timestamp
+                if j.timestamp < 0 then
+                    timestamp = SecondsToTime(-j.timestamp)
+                else
+                    timestamp = SecondsToTime(j.timestamp)
+                end
+                self:Communicate("   " .. i .. " [" .. timestamp .. "]")
             else
                 self:Communicate("   " .. i)
             end
@@ -1005,5 +1017,5 @@ function swLoots:ValidateItemLink(item)
 end
 
 function swLoots:CreateTimestamp(raid)
-    return raid.offset + (time() - time(raid.date))
+    return raid.offset - (time() - time(raid.date))
 end
