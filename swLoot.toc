@@ -1,13 +1,13 @@
 ## Interface: 20400
-## Title: swLoots
+## Title: swLoot
 ## Author: Dennis Zickefoose, Jr
-## Version: 0.14
+## Version: 0.2
 ## Notes: A simple loot rolling system
 ## eMail: dennis.zickefoose@gmail.com
 ## URL: http://code.google.com/p/swloot/
 ## DefaultState: Enabled
 ## LoadOnDemand: 0
-## SavedVariables: swLootsData
+## SavedVariables: swLootData
 ## OptionalDeps: Ace3
 ## X-Embeds: Ace3
 
