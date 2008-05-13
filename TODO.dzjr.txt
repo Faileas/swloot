@@ -4,4 +4,3 @@ Dennis's list of things he wants to see happen
 -- Shard rolls, pref w/ interface
 -- More output options [notably summarizing to party/self regardless of group composition]
 -- Interface <<<
--- clean up command line commands [group some up] <--Done in Ace3 branch
