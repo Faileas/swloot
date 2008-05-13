@@ -13,4 +13,4 @@
 
 embeds.xml
 
-swLoots.lua
+swLoot.lua
