@@ -1,0 +1,6 @@
+Dennis's list of things he wants to see happen
+
+-- Get synchronization working <-- Almost done
+-- Shard rolls, pref w/ interface
+-- More output options [notably summarizing to party/self regardless of group composition]
+-- Interface <<<
