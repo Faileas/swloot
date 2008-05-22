@@ -302,6 +302,7 @@ local options = {
                     set = function(info, str) 
                         local _, _, player, need = string.find(str, "^(%a+)%s*(%a*)")
                         local myRaid = swLootData.raids[swLootData.currentRaid]
+                        player = swLoot:FindMain(player)
                         local myNeed = myRaid.usedNeed[player]
                         if need:trim() == "" then
                             if myNeed == nil then
@@ -389,10 +390,10 @@ swLoot = LibStub("AceAddon-3.0"):NewAddon("swLoot", "AceConsole-3.0", "AceEvent-
                                                      "AceSerializer-3.0")
 
 swLoot.version = tonumber(strmatch("$Revision: 33 $", "%d+"))
-swLoot.reqVersion = 34 --Beta release; no talking with old betas
+swLoot.reqVersion = swLoot.version --Beta release; no talking with old betas
 
 --Used by the aceComm library.  Do not change without a really good reason.
-swLoot.commPrefix = "swLoot"
+swLoot.commPrefix = "swLootBeta"
 
 --swLootData is the structure that gets saved between sessions.  No new members should be added to 
 --it unless you want them to be saved.  Single session data belongs in swLoot
@@ -411,12 +412,11 @@ swLootData.nextLootID = 0
 --                unique number; it isn't actually that important except when merging data
 -- raids[ID].loot[ID'].item is the item's name
 -- raids[ID].loot[ID'].player is the winner's name
-
---These fields are not yet used:
---  raids[ID].instances is an array of instance IDs that have been awarded loot
---  raids[ID].date is the date when the raid was started
---  raids[ID].offset is the time difference between the local clock and the 
---                   machine that created the raid
+-- raids[ID].instances is an array of instance IDs that have been awarded loot
+-- raids[ID].date is the date when the raid was started
+-- raids[ID].offset is the time difference between the local clock and the 
+--                  machine that created the raid
+-- raids[ID].mains[Name] is the main that is associated with Name.  All 
 swLootData.raids = {}
 
 --These define the acceptable roll range.  Eventually, I should like to make this variable, hense
@@ -425,6 +425,10 @@ swLootData.loRoll = 1
 swLootData.hiRoll = 100
 swLootData.currentRaid = nil
 swLootData.previousRaid = nil
+
+--The global alt list.  
+swLootData.mains = {}
+swLoot.altPattern = "%(Alt%)%s*(%a+)"
 
 --This is information used by the roll tracker.  
 --currentRollers[Player] is the roll made by Player
@@ -477,6 +481,7 @@ function swLoot:CreateEmptyRaid()
     i.instances = {}
     i.date = date("*t")
     i.offset = 0
+    i.mains = {}
     return i
 end
 
@@ -659,6 +664,7 @@ function swLoot:DetermineWinner()
     local winnerUnusedNeed = nil
     local rollUnusedNeed = -1
     for k,v in pairs(swLoot.currentRollers) do
+        k = swLoot:FindMain(k)
         if v > roll then 
             winner = k 
             roll = v 
@@ -746,7 +752,9 @@ function swLoot:Award()
     local myRaid = swLootData.raids[swLootData.currentRaid]
     
     if swLoot:ValidateTrackedRaid() == false then return end
-        
+
+    swLoot.currentWinner = swLoot:FindMain(swLoot.currentWinner)
+    
     --swLootData.raids[swLootData.currentRaid].loot[swLoot.currentItem] = swLoot.currentWinner
     local lootID = UnitName("player") .. swLootData.nextLootID
     myRaid.loot[lootID] = {}
@@ -1030,6 +1038,36 @@ end
 
 function swLoot:ValidateItemLink(item)
     return string.find(item, "^" .. ItemLinkPattern .. "$") ~= nil 
+end
+
+function swLoot:GetGuildIndex(name)
+    if not IsInGuild() then return 0 end
+    for i = 1, GetNumGuildMembers(true) do
+        if GetGuildRosterInfo(i) == name then return i end
+    end
+    return 0
+end
+
+function swLoot:FindMain(name)
+    --Check raid mains, then global mains, then officer note
+    if swLootData.currentRaid ~= nil then
+        local mains = swLootData.raids[swLootData.currentRaid].mains
+        if mains ~= nil and mains[name] ~= nil then
+            return mains[name]
+        end
+    end
+    
+    mains = swLootData.mains
+    if mains ~= nil and mains[name] ~= nil then
+        return mains[name]
+    end   
+    
+    local guildindex = swLoot:GetGuildIndex(name)
+    if guildindex == 0 then return name end
+    local note = select(8, GetGuildRosterInfo(guildindex))
+    local alt = select(3, string.find(note, swLoot.altPattern))
+    if alt == nil then alt = name end
+    return alt
 end
 
 function swLoot:CreateTimestamp(raid)
