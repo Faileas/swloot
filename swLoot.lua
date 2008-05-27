@@ -584,6 +584,9 @@ function swLoot:InitializeSavedVariables()
 
     --The global alt list.  
     if swLootData.mains == nil then swLootData.mains = {} end
+    
+    --Do we want to see the loot panel? [is true for right now; eventually will default to false]
+    if swLootData.lootPanel == nil then swLootData.lootPanel = true end
 end
 
 --I'll bet there's a better name for this function.  It locates a raid that matches the isntance ID
@@ -642,8 +645,10 @@ function swLoot:OnInitialize()
     
     self:RegisterEvent("CHAT_MSG_SYSTEM")
     self:RegisterEvent("UPDATE_INSTANCE_INFO")
+    self:RegisterEvent("LOOT_OPENED")
+    self:RegisterEvent("LOOT_CLOSED")
+    self:RegisterEvent("LOOT_SLOT_CLEARED")
     self:Print("swLoot successfully initialized.")
-    
 end
 
 function swLoot:UPDATE_INSTANCE_INFO(arg1)
@@ -695,18 +700,18 @@ function swLoot:CHAT_MSG_SYSTEM(arg1, arg2)
     end
 end
 
-function swLoot:StateMachine(state, need, greed)
+function swLoot:StateMachine(state, need, greed, callback)
     if state == swLoot.stateStartNeed then
         self:Communicate("Need rolls for " .. swLoot.currentItem)
         self.recordingRolls = true
-        self:ScheduleTimer(function() self:StateMachine(swLoot.stateNeedCount, need, greed) end, 3)
+        self:ScheduleTimer(function() self:StateMachine(swLoot.stateNeedCount, need, greed, callback) end, 3)
     elseif state == swLoot.stateNeedCount then
         swLoot:Communicate(need)
         if need == 0 then 
             state = self.stateEvaluateNeed 
             self.recordingRolls = false
         end
-        self:ScheduleTimer(function() self:StateMachine(state, need-1, greed) end, 1)
+        self:ScheduleTimer(function() self:StateMachine(state, need-1, greed, callback) end, 1)
     elseif state == swLoot.stateEvaluateNeed then
         local winner, winnerUnusedNeed = swLoot:DetermineWinner()
         if winner ~= nil then
@@ -720,20 +725,21 @@ function swLoot:StateMachine(state, need, greed)
                 swLoot.currentWinner = winnerUnusedNeed
             end
             swLoot.winnerRolledNeed = true
+            if callback ~= nil then callback(swLoot.currentWinner, true) end
             swLoot:EndRoll()
         else 
-            self:ScheduleTimer(function() self:StateMachine(swLoot.stateStartGreed, nil, greed) end, 2)
+            self:ScheduleTimer(function() self:StateMachine(swLoot.stateStartGreed, nil, greed, callback) end, 2)
         end
     elseif state == swLoot.stateStartGreed then
         self:Communicate("Greed rolls for " .. swLoot.currentItem)
         self.recordingRolls = true
-        self:ScheduleTimer(function() self:StateMachine(swLoot.stateGreedCount, nil, greed) end, 3)
+        self:ScheduleTimer(function() self:StateMachine(swLoot.stateGreedCount, nil, greed, callback) end, 3)
     elseif state == swLoot.stateGreedCount then
         self:Communicate(greed)
         if greed == 0 then 
             state = swLoot.stateEvaluateGreed 
         end
-        self:ScheduleTimer(function() self:StateMachine(state, nil, greed-1) end, 1)
+        self:ScheduleTimer(function() self:StateMachine(state, nil, greed-1, callback) end, 1)
     elseif state == swLoot.stateEvaluateGreed then
         self.recordingRolls = false
         local winner = swLoot:DetermineWinner()
@@ -741,6 +747,7 @@ function swLoot:StateMachine(state, need, greed)
             swLoot:Communicate(winner .. " won " .. swLoot.currentItem .. " on a greed.")
             swLoot.currentWinner = winner
             swLoot.winnerRolledNeed = false
+            if callback ~= nil then callback(swLoot.currentWinner, false) end
         else 
             swLoot:Communicate("Rolls over; nobody rolled.")
         end
@@ -750,7 +757,7 @@ function swLoot:StateMachine(state, need, greed)
     end
 end
 
-function swLoot:StartRoll(item)
+function swLoot:StartRoll(item, callback)
     if swLoot.rollInProgress == true then
         self:Print("Another roll is in progress [" .. swLoot.currentItem .. "]; please wait for it to complete.")
         return
@@ -762,10 +769,11 @@ function swLoot:StartRoll(item)
     swLoot.currentItem = item
     self:ResetLastRoll()
     swLoot.rollInProgress = true
-    self:StateMachine(swLoot.stateStartNeed, 10, 5)
+    self:StateMachine(swLoot.stateStartNeed, 10, 5, callback)
 end
 
-function swLoot:StartGreed(item)
+function swLoot:StartGreed(item, duration, callback)
+    if duration == nil then duration = 5 end
     if swLoot.rollInProgress == true then
         self:Print("Another roll is in progress [" .. swLoot.currentItem .. "]; please wait for it to complete.")
         return
@@ -777,7 +785,7 @@ function swLoot:StartGreed(item)
     self.currentItem = item
     self:ResetLastRoll()
     self.rollInProgress = true
-    self:StateMachine(swLoot.stateStartGreed, nil, 5)
+    self:StateMachine(swLoot.stateStartGreed, nil, duration, callback)
 end
 
 function swLoot:EndRoll()
@@ -924,6 +932,7 @@ function swLoot:Award()
 end
 
 function swLoot:AwardItem(str)
+    swLoot:Print(str)
     local found, _, player, item, need = string.find(str, "^(%a+)%s*(" .. ItemLinkPattern ..")%s*(%a*)")
     if found == nil then
         found, _, item, player, need = string.find(str, "^(" .. ItemLinkPattern .. ")%s*(%a+)%s*(%a*)")
