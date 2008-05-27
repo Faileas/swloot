@@ -932,7 +932,6 @@ function swLoot:Award()
 end
 
 function swLoot:AwardItem(str)
-    swLoot:Print(str)
     local found, _, player, item, need = string.find(str, "^(%a+)%s*(" .. ItemLinkPattern ..")%s*(%a*)")
     if found == nil then
         found, _, item, player, need = string.find(str, "^(" .. ItemLinkPattern .. ")%s*(%a+)%s*(%a*)")
