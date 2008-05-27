@@ -20,7 +20,7 @@ local function CreateLootFrame(i)
     topframe:SetBackdropColor(0,0,0,1)
     topframe:SetToplevel(true)
     topframe:SetFrameStrata("FULLSCREEN_DIALOG")
-    if i == 1 then
+    if #lootframes == 0 then
         topframe:SetPoint("TOPLEFT", LootFrame, "TOPRIGHT")
     else
         topframe:SetPoint("TOPLEFT", lootframes[#lootframes].topframe, "BOTTOMLEFT")
@@ -185,8 +185,11 @@ end
 
 function swLoot:LOOT_OPENED()
     lootframes = {}
+    local threshold = GetLootThreshold()
     for i = 1, GetNumLootItems() do
-        CreateLootFrame(i)
+        if (select(4, GetLootSlotInfo(i))) >= threshold then
+            CreateLootFrame(i)
+        end
     end
 end
 
@@ -198,12 +201,12 @@ function swLoot:LOOT_CLOSED()
 end
 
 function swLoot:LOOT_SLOT_CLEARED(name, slot)
-    local pos
+    local pos = nil
     for i, frame in pairs(lootframes) do
         if frame.topframe.slot == slot then 
             frame.topframe:Hide() 
             pos = i
         end
     end
-    table.remove(lootframes, pos)
+    if pos ~= nil then table.remove(lootframes, pos) end
 end
