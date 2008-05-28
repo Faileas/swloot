@@ -77,11 +77,30 @@ local options = {
                 end
             end
         },
+        config = {
+            type = 'group',
+            name = 'Config',
+            desc = 'Configuration options',
+            order = 7,
+            args = {
+                showGUI = {
+                    type = 'select',
+                    name = 'Show GUI',
+                    desc = 'Specify when to show the loot interface',
+                    values = {never = 'never', whenML = 'whenML', always = 'always'},
+                    get = function(info) return swLootData.showGUI end,
+                    set = function(info, value) 
+                        swLootData.showGUI = value
+                        swLoot:Print("Show GUI: " .. value)
+                    end
+                },
+            }
+        },
         raid = {
             name = 'Raid',
             desc = 'Functions for raid manipulation',
             type = 'group',
-            order = 7,
+            order = 8,
             args = {
                 create = {
                     type = 'input',
@@ -204,7 +223,7 @@ local options = {
             type = 'group',
             name = 'DebugMenu',
             desc = 'Functions for debugging the addon',
-            order = 11,
+            order = 12,
             args = {
                 output = {
                     type = 'select',
@@ -243,7 +262,7 @@ local options = {
             type = 'group',
             name = 'Trusted users menu',
             desc = 'Functions for manipulating the list of trusted users',
-            order = 10,
+            order = 11,
             args = {
                 add = {
                     type = 'input',
@@ -283,7 +302,7 @@ local options = {
             name = 'Loot manipulation',
             desc = 'Functions that directly manipulate loot distribution',
             type = 'group',
-            order = 8,
+            order = 9,
             args = {
                 direct = {
                     type = 'input',
@@ -386,7 +405,7 @@ local options = {
             name = 'Alt manipulation',
             desc = 'Functions that associate alts with mains',
             type = 'group',
-            order = 9,
+            order = 10,
             args = {
                 list = {
                     name = 'List Alts',
@@ -585,8 +604,8 @@ function swLoot:InitializeSavedVariables()
     --The global alt list.  
     if swLootData.mains == nil then swLootData.mains = {} end
     
-    --Do we want to see the loot panel? [is true for right now; eventually will default to false]
-    if swLootData.lootPanel == nil then swLootData.lootPanel = true end
+    --Do we want to see the loot panel?
+    if swLootData.showGUI == nil then swLootData.showGUI = 'whenML' end
 end
 
 --I'll bet there's a better name for this function.  It locates a raid that matches the isntance ID

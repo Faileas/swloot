@@ -1,11 +1,5 @@
 local lootframes = {}
 
-local function HideLootFrames()
-    for i = 1, #lootframes do
-        lootframes[i].topframe:Hide()
-    end
-end
-
 local function CreateLootFrame(i)
     local topframe, icon, need, greed, raid, duration, assignName, assignNeed, assign, ignore
 
@@ -184,6 +178,9 @@ local function CreateLootFrame(i)
 end
 
 function swLoot:LOOT_OPENED()
+    if swLootData.showGUI == 'never' then return end
+    if swLootData.showGUI == 'whenML' and (select(2, GetLootMethod())) ~= 0 then return end
+    
     lootframes = {}
     local threshold = GetLootThreshold()
     for i = 1, GetNumLootItems() do
