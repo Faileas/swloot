@@ -950,7 +950,7 @@ end
 function swLoot:Synchronize(sender, raid, data, timez, bounceback)
     if bounceback ~= true and swLootData.trustedUsers[string.lower(sender)] ~= true then
         self:Print("An untrusted user [" .. sender .. "] has attempted to synchronize data.")
-        self:Print("If this was in error, please use the command /swloot addTrusted " 
+        self:Print("If this was in error, please use the command /swloot trusted add " 
                    .. sender .. " to add this player to your trusted list.")
         self:WhisperMessage(sender, "CommunicateSyncDenied", "Untrusted user")
         return
