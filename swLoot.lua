@@ -531,7 +531,7 @@ swLoot = LibStub("AceAddon-3.0"):NewAddon("swLoot", "AceConsole-3.0", "AceEvent-
                                                      "AceComm-3.0", "AceTimer-3.0",
                                                      "AceSerializer-3.0")
 
-swLoot.version = tonumber(strmatch("$Revision: 33 $", "%d+"))
+swLoot.version = tonumber(strmatch("$Revision$", "%d+"))
 swLoot.reqVersion = swLoot.version --Beta release; no talking with old betas
 
 --Used by the aceComm library.  Do not change without a really good reason.
