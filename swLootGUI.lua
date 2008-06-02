@@ -69,6 +69,16 @@ local function CreateLootFrame(i)
     raid:SetHeight(20)
     raid:SetWidth(100)
     raid:SetText("Raid Roll")
+    raid:SetScript("OnClick", function(frame)
+        local candidates = {}
+        for i = 1, 40 do
+            if GetMasterLootCandidate(i) ~= nil then
+                table.insert(candidates, {index = i, name = GetMasterLootCandidate(i)})
+            end
+        end
+        local candidate = math.random(#candidates)
+        GiveMasterLoot(frame:GetParent().slot, candidates[candidate].index)
+    end)
     
     duration = CreateFrame("EditBox", "swLootFramesDuration" .. i, topframe, "InputBoxTemplate")
     duration:SetAutoFocus(false)
