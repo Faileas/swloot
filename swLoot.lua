@@ -77,11 +77,30 @@ local options = {
                 end
             end
         },
+        config = {
+            type = 'group',
+            name = 'Config',
+            desc = 'Configuration options',
+            order = 7,
+            args = {
+                showGUI = {
+                    type = 'select',
+                    name = 'Show GUI',
+                    desc = 'Specify when to show the loot interface',
+                    values = {never = 'never', whenML = 'whenML', always = 'always'},
+                    get = function(info) return swLootData.showGUI end,
+                    set = function(info, value) 
+                        swLootData.showGUI = value
+                        swLoot:Print("Show GUI: " .. value)
+                    end
+                },
+            }
+        },
         raid = {
             name = 'Raid',
             desc = 'Functions for raid manipulation',
             type = 'group',
-            order = 7,
+            order = 8,
             args = {
                 create = {
                     type = 'input',
@@ -204,7 +223,7 @@ local options = {
             type = 'group',
             name = 'DebugMenu',
             desc = 'Functions for debugging the addon',
-            order = 10,
+            order = 12,
             args = {
                 output = {
                     type = 'select',
@@ -243,7 +262,7 @@ local options = {
             type = 'group',
             name = 'Trusted users menu',
             desc = 'Functions for manipulating the list of trusted users',
-            order = 9,
+            order = 11,
             args = {
                 add = {
                     type = 'input',
@@ -283,7 +302,7 @@ local options = {
             name = 'Loot manipulation',
             desc = 'Functions that directly manipulate loot distribution',
             type = 'group',
-            order = 8,
+            order = 9,
             args = {
                 direct = {
                     type = 'input',
@@ -302,6 +321,7 @@ local options = {
                     set = function(info, str) 
                         local _, _, player, need = string.find(str, "^(%a+)%s*(%a*)")
                         local myRaid = swLootData.raids[swLootData.currentRaid]
+                        player = swLoot:FindMain(player)
                         local myNeed = myRaid.usedNeed[player]
                         if need:trim() == "" then
                             if myNeed == nil then
@@ -381,6 +401,129 @@ local options = {
                 },
             }
         },
+        alts = {
+            name = 'Alt manipulation',
+            desc = 'Functions that associate alts with mains',
+            type = 'group',
+            order = 10,
+            args = {
+                list = {
+                    name = 'List Alts',
+                    desc = 'List the mains for each member of the current party',
+                    type = 'execute',
+                    func = function(info)
+                        local name
+                        if GetNumRaidMembers() > 0 then
+                            for i = 1, 40 do
+                                name = GetRaidRosterInfo(i)
+                                if name ~= nil then
+                                    swLoot:Print(name .. " --> " .. swLoot:FindMain(name))
+                                end
+                            end
+                        elseif GetNumPartyMembers() > 0 then
+                            name = UnitName("player")
+                            swLoot:Print(name .. " --> " .. swLoot:FindMain(name))
+                            for i = 1, 4 do
+                                name = UnitName("party" .. i)
+                                if name ~= nil then
+                                    swLoot:Print(name .. " --> " .. swLoot:FindMain(name))
+                                end
+                            end
+                        else
+                            name = UnitName("player")
+                            swLoot:Print(name .. " --> " .. swLoot:FindMain(name))
+                        end
+                    end
+                },
+                temp = {
+                    type = 'group',
+                    name = 'Temporary alts',
+                    desc = 'Functions for assigning an alt for a single raid',
+                    args = {
+                        set = {
+                            type = 'input',
+                            name = 'Set temporary alt',
+                            desc = 'Sets an alt-main association for a single raid',
+                            usage = '<alt name> <main name>',
+                            get = false,
+                            set = function(info, str)
+                                if swLootData.currentRaid == nil then
+                                    swLoot:Print("You are not currently tracking a raid.")
+                                    return
+                                end
+                                local _, _, alt, main = string.find(str, "^(%a+)%s*(%a+)$")
+                                if alt == nil then
+                                    swLoot:Print("Unrecognized string [" .. str .."]")
+                                end
+                                swLootData.raids[swLootData.currentRaid].mains[alt] = main
+                            end
+                        },
+                        clear = {
+                            type = 'input',
+                            name = 'Clear temporary alt',
+                            desc = 'Removes the association between an alt and a main',
+                            usage = '<alt name>',
+                            get = false,
+                            set = function(info, str)
+                                if swLootData.currentRaid == nil then
+                                    swLoot:Print("You are not currently tracking a raid.")
+                                    return
+                                end
+                                local myRaid = swLootData.raids[swLootData.currentRaid]
+                                if myRaid.mains[alt] == nil then
+                                    swLoot:Print(alt .. " has not been assigned a main.")
+                                    return
+                                end
+                                myRaid.mains[alt] = nil
+                            end
+                        }
+                    }                    
+                },
+                permanent = {
+                    type = 'group',
+                    name = 'Permanent alts',
+                    desc = 'Functions for assigning alts across all raids',
+                    args = {
+                        set = {
+                            name = 'Set permanent alt',
+                            desc = 'Sets an alt that spans all future raids',
+                            type = 'input',
+                            usage = '<alt name> <main name>',
+                            get = false,
+                            set = function(info, str)
+                                local _, _, alt, main = string.find(str, "^(%a+)%s*(%a+)$")
+                                if alt == nil then
+                                    swLoot:Print("Unrecognized string [" .. str .."]")
+                                end
+                                if swLootData.mains[alt] ~= nil then
+                                    swLoot:Print(alt .."'s main changed from " 
+                                                     .. swLootData.mains[alt] .. " to " 
+                                                     .. main .. ".")
+                                else
+                                    swLoot:Print(alt .. "'s main set to " .. main .. ".")
+                                end
+                                swLootData.mains[alt] = main
+                            end
+                        },
+                        clear = {
+                            name = 'Clear permanent alt',
+                            desc = 'Removes the association between an alt and a main',
+                            type = 'input',
+                            usage = '<alt name>',
+                            get = false,
+                            set = function(info, str)
+                                if swLootData.mains[alt] == nil then
+                                    swLoot:Print(alt .. " has not been assigned a main.")
+                                    return
+                                end
+                                swLoot:Print(alt .. "'s main cleared.")
+                                swLootData.mains[alt] = nil
+                            end
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -394,37 +537,7 @@ swLoot.reqVersion = 34
 --Used by the aceComm library.  Do not change without a really good reason.
 swLoot.commPrefix = "swLoot"
 
---swLootData is the structure that gets saved between sessions.  No new members should be added to 
---it unless you want them to be saved.  Single session data belongs in swLoot
-swLootData = {}
-
---A table of users trusted to automatically synchronize with.
---If trustedUsers[BillyBob] ~= true, then BillyBob is not a trusted user
-swLootData.trustedUsers = {}
-
---Basically the number of pieces of loot this account has awarded; used to ensure unique IDs while
---  synchronizing
-swLootData.nextLootID = 0
-
---The actual loot information.  The index is the raid ID
--- raids[ID].loot is a table of the awarded loot.  The index is made up of the player's name, and a
---                unique number; it isn't actually that important except when merging data
--- raids[ID].loot[ID'].item is the item's name
--- raids[ID].loot[ID'].player is the winner's name
-
---These fields are not yet used:
---  raids[ID].instances is an array of instance IDs that have been awarded loot
---  raids[ID].date is the date when the raid was started
---  raids[ID].offset is the time difference between the local clock and the 
---                   machine that created the raid
-swLootData.raids = {}
-
---These define the acceptable roll range.  Eventually, I should like to make this variable, hense
---their inclusion in the saved data
-swLootData.loRoll = 1
-swLootData.hiRoll = 100
-swLootData.currentRaid = nil
-swLootData.previousRaid = nil
+swLoot.altPattern = "%(Alt%)%s*(%a+)"
 
 --This is information used by the roll tracker.  
 --currentRollers[Player] is the roll made by Player
@@ -455,6 +568,46 @@ swLoot.verbose = false
 swLoot.warningMultipleRaids = false
 swLoot.warningNotInInstance = false
 
+
+function swLoot:InitializeSavedVariables()
+    --swLootData is the structure that gets saved between sessions.  No new members should be added to 
+    --it unless you want them to be saved.  Single session data belongs in swLoot
+    if swLootData == nil then swLootData = {} end
+
+    --A table of users trusted to automatically synchronize with.
+    --If trustedUsers[BillyBob] ~= true, then BillyBob is not a trusted user
+    if swLootData.trustedUsers == nil then swLootData.trustedUsers = {} end
+
+    --Basically the number of pieces of loot this account has awarded; used to ensure unique IDs while
+    --  synchronizing
+    if swLootData.nextLootID == nil then swLootData.nextLootID = 0 end
+
+    --The actual loot information.  The index is the raid ID
+    -- raids[ID].loot is a table of the awarded loot.  The index is made up of the player's name, and a
+    --                unique number; it isn't actually that important except when merging data
+    -- raids[ID].loot[ID'].item is the item's name
+    -- raids[ID].loot[ID'].player is the winner's name
+    -- raids[ID].instances is an array of instance IDs that have been awarded loot
+    -- raids[ID].date is the date when the raid was started
+    -- raids[ID].offset is the time difference between the local clock and the 
+    --                  machine that created the raid
+    -- raids[ID].mains[Name] is the main that is associated with Name.  All 
+    if swLootData.raids == nil then swLootData.raids = {} end
+
+    --These define the acceptable roll range.  Eventually, I should like to make this variable, hense
+    --their inclusion in the saved data
+    if swLootData.loRoll == nil then swLootData.loRoll = 1 end
+    if swLootData.hiRoll == nil then swLootData.hiRoll = 100 end
+    --swLootData.currentRaid = nil
+    --swLootData.previousRaid = nil
+
+    --The global alt list.  
+    if swLootData.mains == nil then swLootData.mains = {} end
+    
+    --Do we want to see the loot panel?
+    if swLootData.showGUI == nil then swLootData.showGUI = 'whenML' end
+end
+
 --I'll bet there's a better name for this function.  It locates a raid that matches the isntance ID
 --for the instance you're in.
 function swLoot:FindRaid()
@@ -477,6 +630,7 @@ function swLoot:CreateEmptyRaid()
     i.instances = {}
     i.date = date("*t")
     i.offset = 0
+    i.mains = {}
     return i
 end
 
@@ -501,6 +655,8 @@ function swLoot:OnInitialize()
       
     self:RegisterComm(self.commPrefix)
     
+    swLoot:InitializeSavedVariables()
+    
     if swLootData.currentRaid ~= nil then
         swLootData.previousRaid = swLootData.currentRaid
         swLootData.currentRaid = nil
@@ -508,8 +664,10 @@ function swLoot:OnInitialize()
     
     self:RegisterEvent("CHAT_MSG_SYSTEM")
     self:RegisterEvent("UPDATE_INSTANCE_INFO")
+    self:RegisterEvent("LOOT_OPENED")
+    self:RegisterEvent("LOOT_CLOSED")
+    self:RegisterEvent("LOOT_SLOT_CLEARED")
     self:Print("swLoot successfully initialized.")
-    
 end
 
 function swLoot:UPDATE_INSTANCE_INFO(arg1)
@@ -561,18 +719,18 @@ function swLoot:CHAT_MSG_SYSTEM(arg1, arg2)
     end
 end
 
-function swLoot:StateMachine(state, need, greed)
+function swLoot:StateMachine(state, need, greed, callback)
     if state == swLoot.stateStartNeed then
         self:Communicate("Need rolls for " .. swLoot.currentItem)
         self.recordingRolls = true
-        self:ScheduleTimer(function() self:StateMachine(swLoot.stateNeedCount, need, greed) end, 3)
+        self:ScheduleTimer(function() self:StateMachine(swLoot.stateNeedCount, need, greed, callback) end, 3)
     elseif state == swLoot.stateNeedCount then
         swLoot:Communicate(need)
         if need == 0 then 
             state = self.stateEvaluateNeed 
             self.recordingRolls = false
         end
-        self:ScheduleTimer(function() self:StateMachine(state, need-1, greed) end, 1)
+        self:ScheduleTimer(function() self:StateMachine(state, need-1, greed, callback) end, 1)
     elseif state == swLoot.stateEvaluateNeed then
         local winner, winnerUnusedNeed = swLoot:DetermineWinner()
         if winner ~= nil then
@@ -586,20 +744,21 @@ function swLoot:StateMachine(state, need, greed)
                 swLoot.currentWinner = winnerUnusedNeed
             end
             swLoot.winnerRolledNeed = true
+            if callback ~= nil then callback(swLoot.currentWinner, true) end
             swLoot:EndRoll()
         else 
-            self:ScheduleTimer(function() self:StateMachine(swLoot.stateStartGreed, nil, greed) end, 2)
+            self:ScheduleTimer(function() self:StateMachine(swLoot.stateStartGreed, nil, greed, callback) end, 2)
         end
     elseif state == swLoot.stateStartGreed then
         self:Communicate("Greed rolls for " .. swLoot.currentItem)
         self.recordingRolls = true
-        self:ScheduleTimer(function() self:StateMachine(swLoot.stateGreedCount, nil, greed) end, 3)
+        self:ScheduleTimer(function() self:StateMachine(swLoot.stateGreedCount, nil, greed, callback) end, 3)
     elseif state == swLoot.stateGreedCount then
         self:Communicate(greed)
         if greed == 0 then 
             state = swLoot.stateEvaluateGreed 
         end
-        self:ScheduleTimer(function() self:StateMachine(state, nil, greed-1) end, 1)
+        self:ScheduleTimer(function() self:StateMachine(state, nil, greed-1, callback) end, 1)
     elseif state == swLoot.stateEvaluateGreed then
         self.recordingRolls = false
         local winner = swLoot:DetermineWinner()
@@ -607,6 +766,7 @@ function swLoot:StateMachine(state, need, greed)
             swLoot:Communicate(winner .. " won " .. swLoot.currentItem .. " on a greed.")
             swLoot.currentWinner = winner
             swLoot.winnerRolledNeed = false
+            if callback ~= nil then callback(swLoot.currentWinner, false) end
         else 
             swLoot:Communicate("Rolls over; nobody rolled.")
         end
@@ -616,7 +776,7 @@ function swLoot:StateMachine(state, need, greed)
     end
 end
 
-function swLoot:StartRoll(item)
+function swLoot:StartRoll(item, callback)
     if swLoot.rollInProgress == true then
         self:Print("Another roll is in progress [" .. swLoot.currentItem .. "]; please wait for it to complete.")
         return
@@ -628,10 +788,11 @@ function swLoot:StartRoll(item)
     swLoot.currentItem = item
     self:ResetLastRoll()
     swLoot.rollInProgress = true
-    self:StateMachine(swLoot.stateStartNeed, 10, 5)
+    self:StateMachine(swLoot.stateStartNeed, 10, 5, callback)
 end
 
-function swLoot:StartGreed(item)
+function swLoot:StartGreed(item, duration, callback)
+    if duration == nil then duration = 5 end
     if swLoot.rollInProgress == true then
         self:Print("Another roll is in progress [" .. swLoot.currentItem .. "]; please wait for it to complete.")
         return
@@ -643,7 +804,7 @@ function swLoot:StartGreed(item)
     self.currentItem = item
     self:ResetLastRoll()
     self.rollInProgress = true
-    self:StateMachine(swLoot.stateStartGreed, nil, 5)
+    self:StateMachine(swLoot.stateStartGreed, nil, duration, callback)
 end
 
 function swLoot:EndRoll()
@@ -659,6 +820,7 @@ function swLoot:DetermineWinner()
     local winnerUnusedNeed = nil
     local rollUnusedNeed = -1
     for k,v in pairs(swLoot.currentRollers) do
+        k = swLoot:FindMain(k)
         if v > roll then 
             winner = k 
             roll = v 
@@ -746,7 +908,9 @@ function swLoot:Award()
     local myRaid = swLootData.raids[swLootData.currentRaid]
     
     if swLoot:ValidateTrackedRaid() == false then return end
-        
+
+    swLoot.currentWinner = swLoot:FindMain(swLoot.currentWinner)
+    
     --swLootData.raids[swLootData.currentRaid].loot[swLoot.currentItem] = swLoot.currentWinner
     local lootID = UnitName("player") .. swLootData.nextLootID
     myRaid.loot[lootID] = {}
@@ -1030,6 +1194,36 @@ end
 
 function swLoot:ValidateItemLink(item)
     return string.find(item, "^" .. ItemLinkPattern .. "$") ~= nil 
+end
+
+function swLoot:GetGuildIndex(name)
+    if not IsInGuild() then return 0 end
+    for i = 1, GetNumGuildMembers(true) do
+        if GetGuildRosterInfo(i) == name then return i end
+    end
+    return 0
+end
+
+function swLoot:FindMain(name)
+    --Check raid mains, then global mains, then officer note
+    if swLootData.currentRaid ~= nil then
+        local mains = swLootData.raids[swLootData.currentRaid].mains
+        if mains ~= nil and mains[name] ~= nil then
+            return mains[name]
+        end
+    end
+    
+    mains = swLootData.mains
+    if mains ~= nil and mains[name] ~= nil then
+        return mains[name]
+    end   
+    
+    local guildindex = swLoot:GetGuildIndex(name)
+    if guildindex == 0 then return name end
+    local note = select(8, GetGuildRosterInfo(guildindex))
+    local alt = select(3, string.find(note, swLoot.altPattern))
+    if alt == nil then alt = name end
+    return alt
 end
 
 function swLoot:CreateTimestamp(raid)
