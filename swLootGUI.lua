@@ -3,7 +3,7 @@ local lootframes = {}
 local function CreateLootFrame(i)
     local topframe, icon, need, greed, raid, duration, assignName, assignNeed, assign, ignore
 
-    topframe = CreateFrame("Frame", "swLootFramesTop" .. i)
+    topframe = CreateFrame("Frame", "swLootFramesTop" .. i, UIParent)
     topframe.slot = i
     topframe:SetBackdrop({
         bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -77,6 +77,7 @@ local function CreateLootFrame(i)
             end
         end
         local candidate = math.random(#candidates)
+        swLoot:Print("Assigning loot to " .. candidates[dandidate].name)
         GiveMasterLoot(frame:GetParent().slot, candidates[candidate].index)
     end)
     
