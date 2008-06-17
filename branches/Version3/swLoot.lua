@@ -532,10 +532,10 @@ swLoot = LibStub("AceAddon-3.0"):NewAddon("swLoot", "AceConsole-3.0", "AceEvent-
                                                      "AceSerializer-3.0")
 
 swLoot.version = tonumber(strmatch("$Revision$", "%d+"))
-swLoot.reqVersion = 34 
+swLoot.reqVersion = swLoot.version --old: 34 
 
 --Used by the aceComm library.  Do not change without a really good reason.
-swLoot.commPrefix = "swLoot"
+swLoot.commPrefix = "swLootBeta"
 
 swLoot.altPattern = "%(Alt%)%s*(%a+)"
 
