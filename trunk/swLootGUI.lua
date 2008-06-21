@@ -77,7 +77,7 @@ local function CreateLootFrame(i)
             end
         end
         local candidate = math.random(#candidates)
-        swLoot:Print("Assigning loot to " .. candidates[dandidate].name)
+        swLoot:Print("Assigning loot to " .. candidates[candidate].name)
         GiveMasterLoot(frame:GetParent().slot, candidates[candidate].index)
     end)
     
