@@ -1,7 +1,4 @@
-﻿--TODO: The instanceID code in Award is really dumb
---Thoughts: Once intarweb work look up lua tables and see what functions are available
-
-local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
+﻿local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
 
 local options = {
     name = "swLoot",
@@ -528,8 +525,8 @@ local options = {
 }
 
 swLoot = LibStub("AceAddon-3.0"):NewAddon("swLoot", "AceConsole-3.0", "AceEvent-3.0", 
-                                                     "AceComm-3.0", "AceTimer-3.0",
-                                                     "AceSerializer-3.0")
+                                                    "AceComm-3.0", "AceTimer-3.0",
+                                                    "AceSerializer-3.0")
 
 swLoot.version = tonumber(strmatch("$Revision$", "%d+"))
 swLoot.reqVersion = swLoot.version --old: 34 
