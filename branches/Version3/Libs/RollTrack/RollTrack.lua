@@ -25,7 +25,7 @@ function RollTrack:Embed(target)
 	return target
 end
 
-for target, v in pairs(Countdown.embeds) do
+for target, v in pairs(RollTrack.embeds) do
 	RollTrack:Embed(target)
 end
 
