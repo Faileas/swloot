@@ -18,3 +18,4 @@ swLoot.lua
 swLootGUI.lua
 RollTrack.lua
 OpenRolls.lua
+OpenRollsSummaryFrame.lua
