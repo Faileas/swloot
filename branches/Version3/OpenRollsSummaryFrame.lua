@@ -66,6 +66,8 @@ end)
 group:SetHeight(strings[1].frame:GetTop() - strings[40].frame:GetBottom())
 frame:SetHeight(title:GetTop() - close:GetBottom() + 24)
 
+frame:Hide()
+
 local function RollValue(roll)
     if roll == "Offline" then 
         return -2
