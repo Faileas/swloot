@@ -49,7 +49,6 @@ local function ValidateCallback(self, callback, source, callbackname)
 			error(MAJOR..": " .. source .. ": 'self' - must be a table.", 3)
 		end
 		if type(self[callback]) ~= "function" then 
-			local error_origin = repeating and "ScheduleRepeatingTimer" or "ScheduleTimer"
 			error(MAJOR..": " .. source .. ": '" .. callbackname .. "' - method not found on target object.", 3)
 		end
 	end
