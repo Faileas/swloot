@@ -7,7 +7,7 @@
 ## URL: http://code.google.com/p/swloot/
 ## DefaultState: Enabled
 ## LoadOnDemand: 0
-## SavedVariables: swLootData
+## SavedVariables: swLootData, OpenRollsData
 ## OptionalDeps: Ace3
 ## X-Embeds: Ace3
 
