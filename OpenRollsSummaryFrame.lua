@@ -1,3 +1,5 @@
+local Group = LibStub("GroupLib-1.0")
+
 local frame = CreateFrame("frame", "OpenRollsSummaryFrame", UIParent)
 frame:SetBackdrop({
     bgFile="Interface\\DialogFrame\\UI-DialogBox-Background",
@@ -13,7 +15,7 @@ frame:EnableMouse()
 frame:SetScript("OnMouseDown", function(frame) frame:StartMoving() end)
 frame:SetScript("OnMouseUp", function(frame) frame:StopMovingOrSizing() end)
 frame:SetPoint("CENTER", UIParent, "CENTER")
-frame:SetWidth(500)
+frame:SetWidth(400)
 frame:SetHeight(200)
 
 local title = frame:CreateFontString("OpenRollsSummaryTitle", "OVERLAY", "GameFontNormal")
@@ -35,7 +37,7 @@ for i = 1, 40 do
     local name = stringframe:CreateFontString("OpenRollsSummaryName" .. i, "OVERLAY", "GameFontNormal")
     name:SetJustifyH("LEFT")
     name:SetPoint("TOPLEFT", stringframe, "TOPLEFT")
-    name:SetText("Name " .. i)
+    name:SetText("Not Yet Filled")
     
     local roll = stringframe:CreateFontString("OpenRollsSummaryRoll" .. i, "OVERLAY", "GameFontNormal")
     roll:SetJustifyH("RIGHT")
@@ -73,6 +75,8 @@ local function RollValue(roll)
         return -2
     elseif roll == "Waiting..." then
         return -1
+    elseif roll == "Passed" then
+        return 0
     else
         return tonumber(roll)
     end
@@ -80,10 +84,10 @@ end
 
 local function Color()
     local str, val
-    for i = 1, GetNumRaidMembers() do
+    for i = 1, Group.Number() do
         str = strings[i]
         val = RollValue(str.roll:GetText())
-        if val == -1 then
+        if val == -1 or val == 0 then
             str.name:SetTextColor(0.5, 0.5, 0.5)
             str.roll:SetTextColor(0.5, 0.5, 0.5)
         elseif val == -2 then 
@@ -102,7 +106,7 @@ local function Sort(array)
         values[i] = RollValue(str.roll:GetText())
     end
     --this code was basically stolen from the wikipedia article on insertion sort
-    for i = 2, GetNumRaidMembers() do
+    for i = 2, Group.Number() do
         local value = values[i]
         local name = strings[i].name:GetText()
         local roll = strings[i].roll:GetText()
@@ -134,7 +138,7 @@ local function Sort(array)
 end
 
 function OpenRolls:AssignRoll(name, roll)
-    for i = 1, GetNumRaidMembers() do
+    for i = 1, Group.Number() do
         if strings[i].name:GetText() == name then
             strings[i].roll:SetText(roll)
         end
@@ -143,7 +147,7 @@ function OpenRolls:AssignRoll(name, roll)
 end
 
 function OpenRolls:HasEverybodyRolled()
-    for i = 1, GetNumRaidMembers() do
+    for i = 1, Group.Number() do
         if RollValue(strings[i].roll:GetText()) == -1 then 
             return false
         end
@@ -151,9 +155,10 @@ function OpenRolls:HasEverybodyRolled()
     return true
 end
 
-function OpenRolls:PrintWinners(quantity)
+function OpenRolls:PrintWinners(item, quantity)
+    OpenRolls:Communicate("Roll over for " .. quantity .. "x" .. item)
     if RollValue(strings[1].roll:GetText()) < 1 then
-        OpenRolls:Print("Nobody rolled")
+        OpenRolls:Communicate("   Nobody rolled")
         return
     end
     
@@ -161,7 +166,7 @@ function OpenRolls:PrintWinners(quantity)
         if RollValue(strings[i].roll:GetText()) < 1 then
             return
         end
-        OpenRolls:Print(strings[i].name:GetText())
+        OpenRolls:Communicate(strings[i].name:GetText() .. " rolled " .. strings[i].roll:GetText())
     end
 end
 
@@ -169,12 +174,32 @@ function OpenRolls:HideSummary()
     frame:Hide()
 end
 
-function OpenRolls:ShowSummary(titl)
+function OpenRolls:StartRoll(item, quantity)
+    OpenRolls:Communicate("Open roll for " .. quantity .. "x" .. item)
+    OpenRolls:FillSummary("Roll in progress for " .. quantity .. "x" .. item)
+    OpenRolls:ShowSummary()
+end
+
+function OpenRolls:EndRoll(item, quantity)
+    title:SetText("Roll finished for " .. quantity .. "x" .. item)
+    for i = 1, Group.Number() do
+        if strings[i].roll:GetText() == "Waiting..." then
+            strings[i].roll:SetText("Passed")
+        end
+    end
+    OpenRolls:PrintWinners(item, quantity)
+    if OpenRollsData.ShowSummaryWhenRollsOver then
+        OpenRolls:ShowSummary()
+    end
+end
+
+function OpenRolls:FillSummary(titl)
     title:SetText(titl)
     local height = 0
     local del = strings[1].name:GetHeight()
-    for i = 1, GetNumRaidMembers() do
-        local name, _, _, _, _, _, _, online = GetRaidRosterInfo(i)
+    local i = 0
+    for name, _, online in Group.Members() do
+        i = i + 1
         strings[i].name:SetText(name)
         height = height + del
         if online then
@@ -188,11 +213,17 @@ function OpenRolls:ShowSummary(titl)
         end
         strings[i].frame:Show()
     end
-    for i = GetNumRaidMembers()+1, 40 do
+    for i = Group.Number()+1, 40 do
         strings[i].frame:Hide()
     end
     group:SetHeight(height)
     frame:SetHeight(title:GetTop() - close:GetBottom() + 24)
     Sort()
+end
+
+function OpenRolls:ShowSummary()
+    if strings[1].name:GetText() == "Not Yet Filled" then
+        OpenRolls:FillSummary("No item")
+    end
     frame:Show()
 end

@@ -5,6 +5,8 @@ local GroupLib = LibStub:NewLibrary(MAJOR, MINOR)
 
 if not GroupLib then return end
 
+local GroupLibPrints = GroupLibPrints or {}
+
 function GroupLib.Type()
     if GetNumRaidMembers() > 0 then
         return "raid"
@@ -33,10 +35,10 @@ function GroupLib.Communicate(self, ...)
     elseif GetNumPartyMembers() > 0 then
         SendChatMessage(str, "PARTY")
     else
-        if type(self) ~= "table" or not self.GroupLibDefaultComm then
+        if type(self) ~= "table" or not GroupLibPrints[self] then
             SendChatMessage(str, "SAY")
         else
-            Callback(self, self.GroupLibDefaultComm, str)
+            Callback(self, GroupLibPrints[self], str)
         end
     end    
 end
@@ -58,7 +60,15 @@ end
 
 function GroupLib.SetDefaultComm(self, callback)
     ValidateCallback(self, callback, "SetDefaultComm", "callback")
-    self.GroupLibDefaultComm = callback
+    GroupLibPrints[self] = callback
+end
+
+function GroupLib.Number()
+    local num = GetNumRaidMembers()
+    if num > 0 then return num end
+    num = GetNumPartyMembers()
+    if num > 0 then return num end
+    return 1
 end
 
 function GroupLib.Members()
@@ -67,25 +77,38 @@ function GroupLib.Members()
     if num > 0 then
         return function() 
             i = i + 1
-            if i <= num then return (GetRaidRosterInfo(i)) else return nil end
+            local name = (GetRaidRosterInfo(i))
+            if i <= num then 
+                return name, UnitLevel(name), UnitIsConnected(name), UnitIsDeadOrGhost(name)
+            else 
+                return nil 
+            end
         end
     end
     num = GetNumPartyMembers()
     if num > 0 then
         return function()
             i = i + 1
+            local name
             if i <= num then 
-                return UnitName("party" .. i) 
+                --return UnitName("party" .. i) 
+                name = "party" .. i
             elseif i == num + 1 then
-                return UnitName("player")
+                --return UnitName("player")
+                name = "player"
             else
                 return nil 
             end
+            return UnitName(name), UnitLevel(name), UnitIsConnected(name), UnitIsDeadOrGhost(name)
         end
     end
     return function()
         i = i + 1
-        if i == 1 then return UnitName("player") else return nil end
+        if i == 1 then 
+            return UnitName("player"), UnitLevel("player"), UnitIsConnected("player"), UnitIsDeadOrGhost("player")
+        else 
+            return nil 
+        end
     end
 end
 

@@ -1,5 +1,6 @@
 OpenRolls = LibStub("AceAddon-3.0"):NewAddon("OpenRolls", 
     "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0", "GroupLib-1.0")
+OpenRollsData = OpenRollsData or {}
 
 local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
 
@@ -71,23 +72,30 @@ end
 
 local NamesFrame = NamesFrame or CreateNameFrame()
 
+function OpenRolls:InitializeSavedVariables()
+    if OpenRollsData.ShowSummaryWhenRollsOver == nil then
+        OpenRollsData.ShowSummaryWhenRollsOver = true
+    end
+end
+
+function OpenRolls:OnInitialize()
+    OpenRolls:InitializeSavedVariables()
+end
+
 local function Roll(item, quantity)
     --SummaryFrame:SetTitle(quantity .. "x" .. item)
-    OpenRolls:ShowSummary(quantity .. "x" .. item)
+    OpenRolls:StartRoll(item, quantity)
     local timer = OpenRolls:ScheduleTimer(function() 
-        OpenRolls:PrintWinners(quantity) 
+        OpenRolls:EndRoll(item, quantity)
         OpenRolls:UnregisterMessage("RollTrack_Roll")
-        --OpenRolls:HideSummary()
     end, 30)
     
     OpenRolls:RegisterMessage("RollTrack_Roll", function(msg, char, roll, min, max)
-        OpenRolls:Print(char .. " rolled " .. roll)
         OpenRolls:AssignRoll(char, roll)
         if OpenRolls:HasEverybodyRolled() then
+            OpenRolls:EndRoll(item, quantity)
             OpenRolls:UnregisterMessage("RollTrack_Roll")
             OpenRolls:CancelTimer(timer)
-            OpenRolls:PrintWinners(quantity)
-            --OpenRolls:HideSummary()
         end
     end)
 end
@@ -106,7 +114,6 @@ local function CommandLine(str)
     end
     
     OpenRolls:Print("BAD [[" .. str .. "]]")
-    SummaryFrame:Show()
 end
 
 OpenRolls:RegisterChatCommand("openroll", CommandLine)
