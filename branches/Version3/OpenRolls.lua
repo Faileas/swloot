@@ -1,4 +1,5 @@
-OpenRolls = LibStub("AceAddon-3.0"):NewAddon("OpenRolls", "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0")
+OpenRolls = LibStub("AceAddon-3.0"):NewAddon("OpenRolls", 
+    "AceConsole-3.0", "AceEvent-3.0", "AceTimer-3.0", "GroupLib-1.0")
 
 local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
 
