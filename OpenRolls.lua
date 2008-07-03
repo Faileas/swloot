@@ -91,7 +91,10 @@ local function Roll(item, quantity)
     end, 30)
     
     OpenRolls:RegisterMessage("RollTrack_Roll", function(msg, char, roll, min, max)
-        OpenRolls:AssignRoll(char, roll)
+        if not OpenRolls:AssignRoll(char, roll) then
+            SendChatMessage("You have already rolled once for this item.", "WHISPER", nil, char)
+            return
+        end
         if OpenRolls:HasEverybodyRolled() then
             OpenRolls:EndRoll(item, quantity)
             OpenRolls:UnregisterMessage("RollTrack_Roll")

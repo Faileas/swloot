@@ -140,10 +140,13 @@ end
 function OpenRolls:AssignRoll(name, roll)
     for i = 1, Group.Number() do
         if strings[i].name:GetText() == name then
+            if RollValue(strings[i].roll:GetText()) > 0 then return false end
             strings[i].roll:SetText(roll)
+            Sort()
+            return true
         end
     end
-    Sort()
+    return false
 end
 
 function OpenRolls:HasEverybodyRolled()
