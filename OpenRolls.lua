@@ -113,6 +113,11 @@ local function CommandLine(str)
         return
     end
     
+    if str == "" then
+        OpenRolls:ShowSummary()
+        return
+    end
+    
     OpenRolls:Print("BAD [[" .. str .. "]]")
 end
 
