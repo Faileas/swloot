@@ -77,7 +77,7 @@ local function CreateLootFrame(i)
     icon = CreateFrame("Frame", "swLootFramesIcon" .. i, topframe)
     icon:SetHeight(52)
     icon:SetWidth(52)
-    icon:EnableMouse()            
+    icon:EnableMouse()
     icon:SetScript("OnLeave", function(frame, ...) GameTooltip:Hide() end)
     icon:SetPoint("TOPLEFT", topframe, "TOPLEFT", 15, -15)
     icon:SetBackdrop({

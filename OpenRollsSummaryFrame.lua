@@ -33,17 +33,38 @@ for i = 1, 40 do
     local stringframe = CreateFrame("frame", "OpenRollsSummaryString" .. i, group)
     stringframe:SetPoint("LEFT", group, "LEFT")
     stringframe:SetPoint("RIGHT", group, "RIGHT")
+    stringframe:EnableMouse()
+    stringframe:SetScript("OnEnter", function(frame, ...)
+        local GameTooltip = GameTooltip
+        GameTooltip:SetOwner(frame, "ANCHOR_TOPLEFT")
+        local n = frame.name:GetText()
+        local nr, ng, nb = frame.name:GetTextColor()
+        local r = frame.roll:GetText()
+        local rr, rg, rb = frame.roll:GetTextColor()
+        GameTooltip:AddDoubleLine(n, r, nr, ng, nb, rr, rg, rb)
+        for single, func in OpenRolls:SummaryHooks() do
+            if single then
+                GameTooltip:AddLine(func(n, r))
+            else
+                GameTooltip:AddDoubleLine(func(n, r))
+            end
+        end
+        GameTooltip:AddLine("This is a single line", 1, 0, 1)
+        GameTooltip:Show()
+    end)    
+    stringframe:SetScript("OnLeave", function(frame, ...) GameTooltip:Hide() end)
     
     local name = stringframe:CreateFontString("OpenRollsSummaryName" .. i, "OVERLAY", "GameFontNormal")
     name:SetJustifyH("LEFT")
     name:SetPoint("TOPLEFT", stringframe, "TOPLEFT")
     name:SetText("Not Yet Filled")
+    stringframe.name = name
     
     local roll = stringframe:CreateFontString("OpenRollsSummaryRoll" .. i, "OVERLAY", "GameFontNormal")
     roll:SetJustifyH("RIGHT")
     roll:SetPoint("TOPRIGHT", stringframe, "TOPRIGHT")
     roll:SetText(i)
-    --name:SetPoint("RIGHT", roll, "LEFT", 0)
+    stringframe.roll = roll
     
     stringframe:SetHeight(name:GetHeight())
     
@@ -222,6 +243,27 @@ function OpenRolls:FillSummary(titl)
     group:SetHeight(height)
     frame:SetHeight(title:GetTop() - close:GetBottom() + 24)
     Sort()
+end
+
+local summaryHooks = {}
+
+function OpenRolls:AddSummaryHook(name, single, func)
+    table.insert(summaryHooks, {name = name, single = single, func = func})
+end
+
+function OpenRolls:RemoveSummaryHook(name)
+    for i, j in pairs(summaryHooks) do
+        if j.name == name then table.remove(summaryHooks, i) return end
+    end
+end
+
+function OpenRolls:SummaryHooks()
+    local i = 0
+    return function() 
+        i = i + 1
+        if i > #summaryHooks then return nil end
+        return summaryHooks[i].single, summaryHooks[i].func
+    end
 end
 
 function OpenRolls:ShowSummary()
