@@ -135,12 +135,19 @@ local function CreateLootWindow(lootslot, parent)
     assign:SetHeight(20)
     assign:SetText("Award")
     assign:SetScript("OnClick", function(frame, ...)
-        local window = frame:GetParent()
-        local player = window.assignName:GetText()
-        if player == "" then return end
-        if not OpenRolls:DistributeItemByName(player, window.slot) then
-            OpenRolls:Print(player .. " not eligible for this item.")
-        end
+        local parent = frame:GetParent() 
+        local slot = parent.slot 
+        local name = parent:GetAssign()
+        local need = parent.useNeed:GetChecked() 
+        local item = GetLootSlotLink(slot)  
+        if need == 1 then 
+            need = "need" 
+        else 
+            need = "greed" 
+        end  
+        if name ~= "" then 
+            swLoot:AwardItem(name .. " " .. item .. " " .. need) 
+        end 
     end)
     self.assign = assign
 
@@ -156,6 +163,7 @@ local function CreateInternalWindow(lootslot, parent)
     frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT")
     frame:SetWidth(40)
     frame:SetHeight(100)
+    frame.slot = lootslot
     
     local need = CreateFrame("button", framename .. "Need", frame, "UIPanelButtonTemplate")
     need:SetPoint("TOPLEFT", frame, "TOPLEFT")
@@ -163,7 +171,15 @@ local function CreateInternalWindow(lootslot, parent)
     need:SetWidth(100)
     need:SetText("Need")
     need:SetScript("OnClick", function(frame, ...)
-        swLoot:Print("Need " .. slot)
+        local parent = frame:GetParent()
+        local slot = parent.slot 
+        local itemlink = GetLootSlotLink(slot) 
+        parent:SetAssign("")
+        parent.useNeed:SetChecked(false) 
+        swLoot:StartRoll(itemlink, function(winner, need)  
+            parent:SetAssign(winner) 
+            parent.useNeed:SetChecked(need) 
+        end)
     end)
     frame.need = need
     
@@ -187,7 +203,19 @@ local function CreateInternalWindow(lootslot, parent)
     greed:SetWidth(100)
     greed:SetText("Greed")
     greed:SetScript("OnClick", function(frame, ...)
-        swLoot:Print("Greed " .. slot)
+        local parent = frame:GetParent() 
+        local slot = parent.slot 
+        local itemlink = GetLootSlotLink(slot) 
+        local duration = parent.duration:GetText() 
+        if duration == "" then 
+            duration = "5" 
+        end 
+        parent:SetAssign("") 
+        parent.useNeed:SetChecked(false) 
+        swLoot:StartGreed(itemlink, duration, function(winner, need)
+            parent:SetAssign(winner)
+            parent.useNeed:SetChecked(need) 
+        end)
     end)
     frame.greed = greed
 
@@ -229,9 +257,16 @@ function swLoot:LOOT_OPENED()
     for i = 1, GetNumLootItems() do
         if (select(4, GetLootSlotInfo(i))) >= threshold then
             local item = CreateLootWindow(i, UIParent)
-            item.internal = CreateInternalWindow(i, item)
-            item.internal:ClearAllPoints()
-            item.internal:SetPoint("TOPLEFT", item.name, "BOTTOMLEFT")
+            local internal = CreateInternalWindow(i, item)
+            internal:ClearAllPoints()
+            internal:SetPoint("TOPLEFT", item.name, "BOTTOMLEFT")
+            internal.SetAssign = function(f, player)
+                item.assignName:SetText(player)
+            end
+            internal.GetAssign = function(f)
+                return item.assignName:GetText()
+            end
+            item.internal = internal
             table.insert(frames, item)
             item:Show()
         end
