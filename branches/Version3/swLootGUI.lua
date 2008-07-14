@@ -147,6 +147,67 @@ local function CreateLootWindow(lootslot, parent)
     return self
 end
 
+local internalCount = 1
+local function CreateInternalWindow(lootslot, parent)
+    local framename = "swLootInternalLootFrame" .. internalCount
+    internalCount = internalCount+1
+    
+    local frame = CreateFrame("frame", framename, parent)
+    frame:SetPoint("TOPLEFT", UIParent, "TOPLEFT")
+    frame:SetWidth(40)
+    frame:SetHeight(100)
+    
+    local need = CreateFrame("button", framename .. "Need", frame, "UIPanelButtonTemplate")
+    need:SetPoint("TOPLEFT", frame, "TOPLEFT")
+    need:SetHeight(20)
+    need:SetWidth(100)
+    need:SetText("Need")
+    need:SetScript("OnClick", function(frame, ...)
+        swLoot:Print("Need " .. slot)
+    end)
+    frame.need = need
+    
+    duration = CreateFrame("EditBox", framename .. "Duration", frame, "InputBoxTemplate") 
+    duration:SetAutoFocus(false) 
+    duration:SetFontObject(ChatFontNormal) 
+    duration:SetNumeric() 
+    duration:SetTextInsets(0,0,3,3) 
+    duration:SetMaxLetters(2) 
+    duration:SetPoint("TOPRIGHT", need, "BOTTOMRIGHT") 
+    duration:SetHeight(20) 
+    duration:SetWidth(20) 
+    duration:SetText("5") 
+    AttachMouseoverText(duration, "Duration of a greed roll", 1, 1, 1, 1)
+    frame.duration = duration
+    
+    local greed = CreateFrame("button", framename .. "Greed", frame, "UIPanelButtonTemplate")
+    greed:SetPoint("TOPLEFT", need, "BOTTOMLEFT") 
+    greed:SetPoint("RIGHT", duration, "LEFT", -5, 0) 
+    greed:SetHeight(20)
+    greed:SetWidth(100)
+    greed:SetText("Greed")
+    greed:SetScript("OnClick", function(frame, ...)
+        swLoot:Print("Greed " .. slot)
+    end)
+    frame.greed = greed
+
+    useNeed = CreateFrame("CheckButton", framename .. "UseNeed", frame, "OptionsCheckButtonTemplate") 
+    useNeed:SetPoint("TOPLEFT", need, "BOTTOMRIGHT", 0, 10)
+    useNeed:SetWidth(20) 
+    useNeed:SetHeight(20) 
+    useNeed:SetHitRectInsets(0,0,0,0) 
+    AttachMouseoverText(useNeed, "Use need?", 1, 1, 1, 1)
+    frame.useNeed = useNeed
+    
+    frame:SetWidth(useNeed:GetRight() - need:GetLeft())
+    frame:SetHeight(need:GetTop() - greed:GetBottom())
+    
+    return frame
+end
+
+function swLoot:CreateLootWindow(slot, parent)
+    return CreateInternalWindow(slot, parent)
+end
 
 local frames = {}
 local function RepositionLootWindows()
@@ -159,7 +220,7 @@ local function RepositionLootWindows()
     end
 end
 
-function swLoot:LOOT_OPENED()
+function swLoot:LOOT_OPENED()    
     if swLootData.showGUI == 'never' then return end
     if swLootData.showGUI == 'whenML' and (select(2, GetLootMethod())) ~= 0 then return end
 
@@ -168,6 +229,9 @@ function swLoot:LOOT_OPENED()
     for i = 1, GetNumLootItems() do
         if (select(4, GetLootSlotInfo(i))) >= threshold then
             local item = CreateLootWindow(i, UIParent)
+            item.internal = CreateInternalWindow(i, item)
+            item.internal:ClearAllPoints()
+            item.internal:SetPoint("TOPLEFT", item.name, "BOTTOMLEFT")
             table.insert(frames, item)
             item:Show()
         end
@@ -176,7 +240,19 @@ function swLoot:LOOT_OPENED()
 end
 
 function swLoot:LOOT_CLOSED()
+    for _, f in pairs(frames) do
+        f:Release()
+    end
 end
 
 function swLoot:LOOT_SLOT_CLEARED(name, slot)
+    local pos = nil
+    for i, frame in pairs(frames) do
+        if frame.slot == slot then 
+            frame:Release() 
+            pos = i
+        end
+    end
+    if pos ~= nil then table.remove(frames, pos) end
+    RepositionLootWindows()
 end
