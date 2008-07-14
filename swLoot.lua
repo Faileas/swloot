@@ -659,12 +659,21 @@ function swLoot:OnInitialize()
         swLootData.currentRaid = nil
     end
     
+    self:RegisterEvent("VARIABLES_LOADED")
     self:RegisterEvent("CHAT_MSG_SYSTEM")
     self:RegisterEvent("UPDATE_INSTANCE_INFO")
-    self:RegisterEvent("LOOT_OPENED")
-    self:RegisterEvent("LOOT_CLOSED")
-    self:RegisterEvent("LOOT_SLOT_CLEARED")
     self:Print("swLoot successfully initialized.")
+end
+
+function swLoot:VARIABLES_LOADED()
+    local OpenRolls = LibStub("AceAddon-3.0"):GetAddon("OpenRolls", true)
+    if not OpenRolls then 
+        self:RegisterEvent("LOOT_OPENED")
+        self:RegisterEvent("LOOT_CLOSED")
+        self:RegisterEvent("LOOT_SLOT_CLEARED")
+    else
+        OpenRolls:RegisterLootWindow(swLoot)
+    end
 end
 
 function swLoot:UPDATE_INSTANCE_INFO(arg1)
