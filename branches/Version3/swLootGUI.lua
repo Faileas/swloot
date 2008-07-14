@@ -227,6 +227,16 @@ local function CreateInternalWindow(lootslot, parent)
     AttachMouseoverText(useNeed, "Use need?", 1, 1, 1, 1)
     frame.useNeed = useNeed
     
+    frame.AwardItemToPlayer = function(self, player, item)
+        local need = self.useNeed:GetChecked()
+        if need == 1 then
+            need = "need"
+        else
+            need = "greed"
+        end
+        swLoot:AwardItem(name .. " " .. item .. " " .. need)
+    end
+    
     frame:SetWidth(useNeed:GetRight() - need:GetLeft())
     frame:SetHeight(need:GetTop() - greed:GetBottom())
     
