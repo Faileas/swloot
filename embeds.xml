@@ -12,4 +12,7 @@ xsi:schemaLocation="http://www.blizzard.com/wow/ui/
 <Include file="Libs\AceComm-3.0\AceComm-3.0.xml"/>
 <Include file="Libs\AceTimer-3.0\AceTimer-3.0.xml"/>
 <Include file="Libs\AceSerializer-3.0\AceSerializer-3.0.xml"/>
+<Include file="Libs\RollTrack\RollTrack.xml"/>
+<Include file="Libs\Countdown\Countdown.xml"/>
+<Include file="Libs\GroupLib\GroupLib.xml"/>
 </Ui>
