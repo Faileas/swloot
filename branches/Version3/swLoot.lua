@@ -673,6 +673,18 @@ function swLoot:VARIABLES_LOADED()
         self:RegisterEvent("LOOT_SLOT_CLEARED")
     else
         OpenRolls:RegisterLootWindow(swLoot)
+        OpenRolls:AddSummaryHook("swLootUsedNeed", true, function(name, roll)
+            if swLootData.currentRaid == nil then return end
+            local myRaid = swLootData.raids[swLootData.currentRaid]
+            local need = myRaid.usedNeed[swLoot:FindMain(name)]
+            local str
+            if need == nil or need == false then
+                str = name .. " has not used a need roll."
+            else
+                str = name .. " has used a need roll."
+            end
+            return str, 1, 1, 1
+        end)
     end
 end
 
