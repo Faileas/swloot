@@ -136,9 +136,9 @@ local function CreateLootWindow(lootslot, parent)
     assign:SetText("Award")
     assign:SetScript("OnClick", function(frame, ...)
         local parent = frame:GetParent() 
-        local slot = parent.slot 
-        local name = parent:GetAssign()
-        local need = parent.useNeed:GetChecked() 
+        local slot = parent.lootSlot 
+        local name = parent.assignName:GetText()
+        local need = parent.internal.useNeed:GetChecked() 
         local item = GetLootSlotLink(slot)  
         if need == 1 then 
             need = "need" 
