@@ -1,0 +1,34 @@
+Strip out CLI -- its clunky and doesn't offer enough discoverability
+
+New CLI
+   /swloot <-- Opens GUI
+   /swloot [item] <--Performs need roll
+   /swloot greed [item] <--Performs greed roll
+   /swloot award [item] Person need/greed <--Awards item
+
+Scrap '/swloot award' guessing items and what not; it doesn't interact well with the loot windows
+
+Everything else goes into a GUI
+
+ALTS
+
+Keep a table
+Add character to table
+Goto main
+Add character to table
+Goto main
+Loop until there is no main, or character is already in the table
+
+Timidge -> Raam -> Ellone
+{[Timidge]} -> Raam
+{[Timidge][Raam]} -> Ellone
+Done
+
+Timidge -> Raam -> Ellone -> Timidge
+{[Timidge]} -> Raam
+{[Timidge][Raam]} -> Ellone
+{[Timidge][Raam][Ellone]} -> Timidge
+Done --> print a nasty error message, then just use Timidge as the main
+
+All functions should take current character and convert to main as appropriate.  
+Store the current character *and* the main for printing purposes
