@@ -659,12 +659,33 @@ function swLoot:OnInitialize()
         swLootData.currentRaid = nil
     end
     
+    self:RegisterEvent("VARIABLES_LOADED")
     self:RegisterEvent("CHAT_MSG_SYSTEM")
     self:RegisterEvent("UPDATE_INSTANCE_INFO")
-    self:RegisterEvent("LOOT_OPENED")
-    self:RegisterEvent("LOOT_CLOSED")
-    self:RegisterEvent("LOOT_SLOT_CLEARED")
     self:Print("swLoot successfully initialized.")
+end
+
+function swLoot:VARIABLES_LOADED()
+    local OpenRolls = LibStub("AceAddon-3.0"):GetAddon("OpenRolls", true)
+    if not OpenRolls then 
+        self:RegisterEvent("LOOT_OPENED")
+        self:RegisterEvent("LOOT_CLOSED")
+        self:RegisterEvent("LOOT_SLOT_CLEARED")
+    else
+        OpenRolls:RegisterLootWindow(swLoot)
+        OpenRolls:AddSummaryHook("swLootUsedNeed", true, function(name, roll)
+            if swLootData.currentRaid == nil then return end
+            local myRaid = swLootData.raids[swLootData.currentRaid]
+            local need = myRaid.usedNeed[swLoot:FindMain(name)]
+            local str
+            if need == nil or need == false then
+                str = name .. " has not used a need roll."
+            else
+                str = name .. " has used a need roll."
+            end
+            return str, 1, 1, 1
+        end)
+    end
 end
 
 function swLoot:UPDATE_INSTANCE_INFO(arg1)

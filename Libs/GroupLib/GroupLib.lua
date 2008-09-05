@@ -67,7 +67,7 @@ function GroupLib.Number()
     local num = GetNumRaidMembers()
     if num > 0 then return num end
     num = GetNumPartyMembers()
-    if num > 0 then return num end
+    if num > 0 then return num + 1 end --GetNumPartyMembers() does not include yourself
     return 1
 end
 
