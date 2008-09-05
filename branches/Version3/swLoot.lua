@@ -1,4 +1,5 @@
-﻿local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
+﻿--Pokie pokie
+local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
 
 local options = {
     name = "swLoot",
