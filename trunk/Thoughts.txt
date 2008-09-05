@@ -10,7 +10,7 @@ Scrap '/swloot award' guessing items and what not; it doesn't interact well with
 
 Everything else goes into a GUI
 
-ALTS
+ALT CONTROL
 
 Keep a table
 Add character to table
