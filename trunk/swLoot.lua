@@ -1,6 +1,6 @@
 ﻿local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
-local altPattern = "%(Alt%)%s*(%a+)"
 local DEBUG = (LibStub("dzjrDebug", true) ~= nil)
+local dprint = (DEBUG and print) or function(...) end
 
 local eventFrame = CreateFrame("frame")
 eventFrame:RegisterEvent("ADDON_LOADED")
@@ -8,8 +8,6 @@ eventFrame:RegisterEvent("ADDON_LOADED")
 swLoot = {
     version = tonumber(strmatch("$Revision$", "%d+")),
 }
-
-local dprint = (DEBUG and print) or function(...) end
 
 local function OnInitialize()
 end

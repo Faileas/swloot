@@ -1,7 +1,7 @@
 ## Interface: 20400
 ## Title: swLoot
 ## Author: Dennis Zickefoose, Jr
-## Version: 0.2
+## Version: 2.0
 ## Notes: A simple loot rolling system
 ## eMail: dennis.zickefoose@gmail.com
 ## URL: http://code.google.com/p/swloot/
@@ -14,4 +14,4 @@
 embeds.xml
 
 swLoot.lua
-swLootGUI.lua
+AltControl.lua
