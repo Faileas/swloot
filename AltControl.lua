@@ -1,5 +1,6 @@
 local Addon = swLoot
 if not Addon then return end
+local Data = swLootData
 
 local DEBUG = (LibStub("dzjrDebug", true) ~= nil)
 local dprint = (DEBUG and print) or function(...) end
@@ -44,3 +45,12 @@ local function MemoizeAlt(tbl, name)
 end
 
 Addon.Alts = setmetatable({}, {__index = MemoizeAlt})
+Addons.Defaults.Alts = {}
+
+function Addon:ResetAlts()
+    dprint("Reseting alts")
+    Addon.Alts = setmetatable({}, {__index = MemoizeAlt})
+    for alt, main in pairs(Data.Alts) do
+        Addon.Alts[alt] = main
+    end
+end

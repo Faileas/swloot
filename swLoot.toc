@@ -15,3 +15,5 @@ embeds.xml
 
 swLoot.lua
 AltControl.lua
+Raids.lua
+Item.lua
