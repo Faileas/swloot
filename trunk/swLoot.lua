@@ -11,6 +11,11 @@ swLoot = {
 }
 
 local function OnInitialize()
+    swLoot.Alts["Aggronaut"] = "Ellone"
+    swLoot.Alts["Raam"] = "Ellone"
+    dzjr1 = swLoot.Player:new("Aggronaut")
+    dzjr2 = swLoot.Player:new("Raam")
+    dzjr3 = swLoot.Player:new("Faileas")
 end
 
 local function OnEvent(self, msg, ...)
