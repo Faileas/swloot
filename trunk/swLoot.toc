@@ -17,3 +17,5 @@ swLoot.lua
 AltControl.lua
 Raids.lua
 Item.lua
+Timestamp.lua
+Player.lua

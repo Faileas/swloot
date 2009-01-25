@@ -5,21 +5,20 @@ local DEBUG = (LibStub("dzjrDebug", true) ~= nil)
 local dprint = (DEBUG and print) or function(...) end
 
 local Raid = {}
-Raid.__index = Raid
 
-local setmetatable, pairs, tostring = setmetatable, pairs, tostring
+local setmetatable, pairs, tostring, print = setmetatable, pairs, tostring, print
+local tinsert = table.insert
 
 function Raid:new(name)
     dprint("Creating new raid [" .. name .. "]")
     local self = setmetatable({}, Raid)
     self.name = name
-    local _, month, day, year = CalendarGetDate()
-    local hour, minute = GetGameTime()
-    self.date = {hour = hour, minute = minute, month = month, day = day, year = year}
+    self.date = Addon.Timestamp:new()
     self.ids = {}
     self.alts = {}
     self.isPug = false
     self.drops = {awarded = {}, banked = {}, disenchanted = {}}
+    self.needs = {}
     return self
 end
 
@@ -42,9 +41,34 @@ function Raid:AssignMain(alt, main)
 end
 
 function Raid:tostring()
-    return self.name .. " created on " .. 
-           self.date.month .. "/" .. self.date.day .. "/" .. self.date.year .. " " ..
-           self.date.hour .. ":" .. self.date.minute
+    return self.name .. " created on " .. self.date
+end
+
+function Raid:Print(public)
+    local func
+    if public then
+        func = function(...) Addon:Communicate(...) end
+    else
+        func = print
+    end
+    func("Raid: " .. self.name)
+    func("Created on: " .. self.date)
+    func("Awarded items:")
+    for i,j in pairs(self.drops.awarded) do
+        if DEBUG or not j.deleted then func("   " .. j) end
+    end
+    func("Disenchanted items:")
+    for i,j in pairs(self.drops.disenchanted) do
+        if DEBUG or not j.deleted then func("   " .. j) end
+    end
+    func("Banked items:")
+    for i,j in pairs(self.drops.banked) do
+        if DEBUG or not j.deleted then func("   " .. j) end
+    end
+    func("Used needs:")
+    for i,j in pairs(self.needs) do
+        func("   " .. j.name)
+    end
 end
 
 function Raid:ContainsInstance(id)
@@ -56,12 +80,26 @@ end
 
 --returns true if self is more recent than other; names, ids, et cetera are ignored
 function Raid:CompareTo(other)
-    local lhs, rhs = self.date, other.date
-    return (lhs.year > rhs.year) or 
-           (lhs.month > rhs.month) or 
-           (lhs.day > rhs.day) or 
-           (lhs.hour > rhs.hour) or
-           (lhs.minute > rhs.minute)
+    return self.date < other.date
 end
+
+function Raid:AwardItem(itemLink, player, useNeed)
+    dprint("Awarding " .. itemLink .. " to " .. player .. 
+           " [need? " .. useNeed .. "]")
+    tinsert(self.drops.awarded, Addon.Item:new(itemLink, player, useNeed))
+end
+
+function Raid:BankItem(itemLink)
+    dprint("Banking " .. itemLink)
+    tinsert(self.drops.banked, Addon.Item:new(itemLink))
+end
+
+function Raid:DisenchantItem(itemLink)
+    dprint("Disenchanting " .. itemLink)
+    tinsert(self.drops.disenchanted, Addon.Item:new(itemLink))
+end
+
+Raid.__index = Raid
+Raid.__tostring = Raid.tostring
 
 Addon.Raid = Raid
