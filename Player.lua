@@ -5,6 +5,7 @@ local DEBUG = (LibStub("dzjrDebug", true) ~= nil)
 local dprint = (DEBUG and print) or function(...) end
 
 local Player = {}
+Player.__index = Player
 
 function Player:new(name, player)
     if not player then
@@ -23,8 +24,12 @@ function Player:copy()
     return setmetatable({name = self.name}, Player)
 end
 
+function Player:isMain()
+    return self.name == self.main
+end
+
 Player.__tostring = function(self)
-    if self.main == self.name then return self.name end
+    if self:isMain() then return self.name end
     return self.name .. " [" .. self.main .. "]"
 end
 
@@ -42,7 +47,7 @@ Player.__index = function(t, i)
     if i == "main" then
         return Addon.Alts[t.name]
     else 
-        return nil
+        return Player[i]
     end
 end
 Player.__copy = Player.copy
