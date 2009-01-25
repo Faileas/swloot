@@ -5,71 +5,61 @@ local DEBUG = (LibStub("dzjrDebug", true) ~= nil)
 local dprint = (DEBUG and print) or function(...) end
 
 local Item = {}
-Item.__index = Item
 
 local setmetatable, pairs, tostring = setmetatable, pairs, tostring
 
-local function DeepCopy(tbl)
-    local ret = {}
-    for i,j in pairs(tbl) do
-        if type(j) == "table" then
-            ret[i] = DeepCopy(j)
-        else
-            ret[i] = j
-        end
-    end
-    return ret
-end
-
-function Item:new(item)
-    local self = setmetatable({}, item)
+function Item:new(item, winner, usedNeed)
+    local self = setmetatable({}, Item)
     if type(item) == "string" then
-        dprint("Creating new item [" .. item .. "]")
+        dprint("Creating new item [" .. item .. "] " .. 
+               "for [" .. tostring(winner) .. "] need? [" .. tostring(usedNeed) .. "]")
         self.item = item
-        local _, month, day, year = CalendarGetDate()
-        local hour, minute = GetGameTime()
-        local localtime = date("*t")
-        self.timestamp = {hour = hour, minute = minute, seconds = localtime.sec,
-                          month = month, day = day, year = year}
+        self.timestamp = Addon.Timestamp:new()
         self.deleted = false
-        self.lastChanged = self.timestamp
+        self.lastChanged = Addon.Timestamp:new()
+        self.winner = winner
+        self.usedNeed = usedNeed
     else
+        if getmetatable(copy) ~= Item then 
+            error("Attempt to copy incompatable type") 
+        end
         dprint("Creating new copy of item [" .. item.item .. "]")
-        self = DeepCopy(item)
+        self = item:copy()
     end
     return self
 end
 
-local function compareTimestames(lhs, rhs)
-    return (lhs.year > rhs.year) or 
-           (lhs.month > rhs.month) or 
-           (lhs.day > rhs.day) or 
-           (lhs.hour > rhs.hour) or
-           (lhs.minute > rhs.minute) or
-           (lhs.second > rhs.second)
+function Item:copy()
+    local ret = {}
+    for i,j in self do
+        local m = getmetatable(j)
+        if m and type(m.__copy) == "function" then
+            ret[i] = m.__copy(j)
+        else
+            ret[i] = j
+        end
+    end
+    return setmetatable(ret, Item)
 end
 
---returns true if rhs is the same item as self, and has a more recent lastChanged field
---        in this case, self.deleted and self.lastChanged is updated to match rhs
---returns false otherwise, and leaves self unchanged
-function Item:ConditionalUpdate(rhs)
-    if self.item ~= rhs.item or 
-       compareTimestamps(self.timestamp, rhs.timestamp) or
-       compareTimestamps(self.lastChanged, rhs.lastChanged) then
-
-        return false
+function Item:toString()
+    if not self.winner then return self.item end
+    local str = self.item .. " won by " .. self.winner
+    local main = Addon.Alts[self.winner]
+    if main ~= self.winner then
+        str = str .. " [" .. main .. "]"
     end
-    self.lastChanged = DeepCopy(rhs.lastChanged)
-    self.deleted = rhs.deleted
-    return true
+    return str
+end
+
+--Two items are equal if the items they represent are the same, and their timestamps
+--  match.  Winner, deleted state, and so forth, are not considered.
+function equalTo(lhs, rhs)
+    return lhs.item == rhs.item and lhs.timestamp == rhs.timestamp
 end
 
 function Item:Touch()
-    local _, month, day, year = CalendarGetDate()
-    local hour, minute = GetGameTime()
-    local localtime = date("*t")
-    self.lastChanged = {hour = hour, minute = minute, seconds = localtime.sec,
-                        month = month, day = day, year = year}
+    self.lastChanged = Addon.Timestamp:new()
 end
 
 function Item:Delete()
@@ -95,5 +85,10 @@ function Item:IsTier(item)
     dprint(id)
     return false
 end
+
+Item.__index = Item
+Item.__copy = Item.copy
+Item.__tostring = Item.toString
+Item.__eq = equalTo
 
 Addon.Item = Item
