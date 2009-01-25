@@ -40,7 +40,7 @@ function Raid:AssignMain(alt, main)
     Addon.Alts[alt] = main
 end
 
-function Raid:tostring()
+function toString(self)
     return self.name .. " created on " .. self.date
 end
 
@@ -100,6 +100,6 @@ function Raid:DisenchantItem(itemLink)
 end
 
 Raid.__index = Raid
-Raid.__tostring = Raid.tostring
+Raid.__tostring = toString
 
 Addon.Raid = Raid

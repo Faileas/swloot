@@ -42,7 +42,7 @@ function Item:copy()
     return setmetatable(ret, Item)
 end
 
-function Item:toString()
+function toString(self)
     if not self.winner then return self.item end
     local str = self.item .. " won by " .. self.winner
     local main = Addon.Alts[self.winner]
@@ -88,7 +88,7 @@ end
 
 Item.__index = Item
 Item.__copy = Item.copy
-Item.__tostring = Item.toString
+Item.__tostring = toString
 Item.__eq = equalTo
 
 Addon.Item = Item
