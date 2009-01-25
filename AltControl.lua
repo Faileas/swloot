@@ -45,7 +45,7 @@ local function MemoizeAlt(tbl, name)
 end
 
 Addon.Alts = setmetatable({}, {__index = MemoizeAlt})
-Addons.Defaults.Alts = {}
+Addon.Defaults.Alts = {}
 
 function Addon:ResetAlts()
     dprint("Reseting alts")
