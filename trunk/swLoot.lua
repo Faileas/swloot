@@ -7,6 +7,7 @@ eventFrame:RegisterEvent("ADDON_LOADED")
 
 swLoot = {
     version = tonumber(strmatch("$Revision$", "%d+")),
+    Defaults = {}
 }
 
 local function OnInitialize()
