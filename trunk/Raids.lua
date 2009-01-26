@@ -41,7 +41,7 @@ function Raid:AssignMain(alt, main)
     Addon.Alts[alt] = main
 end
 
-Item.__tostring = function(self)
+Raid.__tostring = function(self)
     return self.name .. " created on " .. self.date
 end
 
