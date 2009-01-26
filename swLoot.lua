@@ -1,5 +1,4 @@
-﻿local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
-local DEBUG = (LibStub("dzjrDebug", true) ~= nil)
+﻿local DEBUG = (LibStub("dzjrDebug", true) ~= nil)
 local dprint = (DEBUG and print) or function(...) end
 
 local eventFrame = CreateFrame("frame")
