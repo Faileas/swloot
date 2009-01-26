@@ -13,11 +13,10 @@ function Item:new(item, winner, usedNeed)
     local self = setmetatable({}, Item)
     if type(item) == "string" then
         dprint("Creating new item [" .. item .. "] " .. 
-               "for [" .. tostring(winner) .. "] need? [" .. tostring(usedNeed) .. "]")
+               "for [" .. tostring(winner) .. "] " ..
+               "need? [" .. tostring(usedNeed) .. "]")
         self.item = item
         self.timestamp = Addon.Timestamp:new()
-        self.deleted = false
-        self.lastChanged = Addon.Timestamp:new()
         self.winner = Addon.Player:new(winner)
         self.usedNeed = usedNeed
     else
@@ -45,28 +44,21 @@ end
 Item.__copy = Item.copy
 
 Item.__tostring = function(self)
-    if not self.winner then return self.item end
-    return self.item .. " won by " .. self.winner
+    local str = self.deleted and "(d)" or ""
+    if self.usedNeed then
+        str = str .. "(n)"
+    end
+    str = str .. self.item
+    if self.winner then 
+        str = str .. " won by " .. self.winner
+    end
+    return str
 end
 
 --Two items are equal if the items they represent are the same, and their timestamps
 --  match.  Winner, deleted state, and so forth, are not considered.
 Item.__eq = function(lhs, rhs)
     return lhs.item == rhs.item and lhs.timestamp == rhs.timestamp
-end
-
-function Item:Touch()
-    self.lastChanged = Addon.Timestamp:new()
-end
-
-function Item:Delete()
-    self.deleted = true
-    self:Touch()
-end
-
-function Item:Restore()
-    self.deleted = false
-    self:Touch()
 end
 
 function Item:IsQuest(item)
