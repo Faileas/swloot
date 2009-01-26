@@ -44,6 +44,16 @@ Raid.__tostring = function(self)
     return self.name .. " created on " .. self.date
 end
 
+local function ListNeeds(drops)
+    local used = {}
+    for i,item in pairs(drops) do
+        if not item.deleted and item.usedNeed then
+            used[item.winner.name] = item.winner
+        end
+    end
+    return used
+end
+
 function Raid:Print(public)
     local func
     if public then
@@ -64,6 +74,10 @@ function Raid:Print(public)
     func("Banked items:")
     for i,j in pairs(self.drops.banked) do
         if DEBUG or not j.deleted then func("   " .. j) end
+    end
+    func("Used needs:")
+    for i,j in pairs(ListNeeds(self.drops.awarded)) do
+        func("   " .. j)
     end
 end
 
