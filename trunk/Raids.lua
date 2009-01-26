@@ -5,6 +5,7 @@ local DEBUG = (LibStub("dzjrDebug", true) ~= nil)
 local dprint = (DEBUG and print) or function(...) end
 
 local Raid = {}
+Raid.__index = Raid
 
 local setmetatable, pairs, tostring, print = setmetatable, pairs, tostring, print
 local tinsert = table.insert
@@ -40,7 +41,7 @@ function Raid:AssignMain(alt, main)
     Addon.Alts[alt] = main
 end
 
-function toString(self)
+Item.__tostring = function(self)
     return self.name .. " created on " .. self.date
 end
 
@@ -98,8 +99,5 @@ function Raid:DisenchantItem(itemLink)
     dprint("Disenchanting " .. itemLink)
     tinsert(self.drops.disenchanted, Addon.Item:new(itemLink))
 end
-
-Raid.__index = Raid
-Raid.__tostring = toString
 
 Addon.Raid = Raid

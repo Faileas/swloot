@@ -5,6 +5,7 @@ local DEBUG = (LibStub("dzjrDebug", true) ~= nil)
 local dprint = (DEBUG and print) or function(...) end
 
 local Item = {}
+Item.__index = Item
 
 local setmetatable, pairs, tostring = setmetatable, pairs, tostring
 
@@ -17,7 +18,7 @@ function Item:new(item, winner, usedNeed)
         self.timestamp = Addon.Timestamp:new()
         self.deleted = false
         self.lastChanged = Addon.Timestamp:new()
-        self.winner = winner
+        self.winner = Addon.Player:new(winner)
         self.usedNeed = usedNeed
     else
         if getmetatable(copy) ~= Item then 
@@ -41,20 +42,16 @@ function Item:copy()
     end
     return setmetatable(ret, Item)
 end
+Item.__copy = Item.copy
 
-function toString(self)
+Item.__tostring = function(self)
     if not self.winner then return self.item end
-    local str = self.item .. " won by " .. self.winner
-    local main = Addon.Alts[self.winner]
-    if main ~= self.winner then
-        str = str .. " [" .. main .. "]"
-    end
-    return str
+    return self.item .. " won by " .. self.winner
 end
 
 --Two items are equal if the items they represent are the same, and their timestamps
 --  match.  Winner, deleted state, and so forth, are not considered.
-function equalTo(lhs, rhs)
+Item.__eq = function(lhs, rhs)
     return lhs.item == rhs.item and lhs.timestamp == rhs.timestamp
 end
 
@@ -85,10 +82,5 @@ function Item:IsTier(item)
     dprint(id)
     return false
 end
-
-Item.__index = Item
-Item.__copy = Item.copy
-Item.__tostring = toString
-Item.__eq = equalTo
 
 Addon.Item = Item
