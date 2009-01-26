@@ -17,13 +17,13 @@ function Item:new(item, winner, usedNeed)
                "need? [" .. tostring(usedNeed) .. "]")
         self.item = item
         self.timestamp = Addon.Timestamp:new()
-        self.winner = Addon.Player:new(winner)
+        self.winner = winner and Addon.Player:new(winner) or nil
         self.usedNeed = usedNeed
     else
-        if getmetatable(copy) ~= Item then 
+        dprint("Creating new copy of item [" .. item .. "]")
+        if getmetatable(item) ~= Item then 
             error("Attempt to copy incompatable type") 
         end
-        dprint("Creating new copy of item [" .. item.item .. "]")
         self = item:copy()
     end
     return self
@@ -31,7 +31,7 @@ end
 
 function Item:copy()
     local ret = {}
-    for i,j in self do
+    for i,j in pairs(self) do
         local m = getmetatable(j)
         if m and type(m.__copy) == "function" then
             ret[i] = m.__copy(j)
@@ -53,6 +53,12 @@ Item.__tostring = function(self)
         str = str .. " won by " .. self.winner
     end
     return str
+end
+
+Item.__concat = function(lhs, rhs)
+    local mL = (getmetatable(lhs) == Item)
+    local mR = (getmetatable(rhs) == Item)
+    return (mL and tostring(lhs) or lhs) .. (mR and tostring(rhs) or rhs)
 end
 
 --Two items are equal if the items they represent are the same, and their timestamps

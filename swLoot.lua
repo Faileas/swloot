@@ -16,6 +16,12 @@ local function OnInitialize()
     dzjr1 = swLoot.Player:new("Aggronaut")
     dzjr2 = swLoot.Player:new("Raam")
     dzjr3 = swLoot.Player:new("Faileas")
+    
+    dzjrRaid = swLoot.Raid:new("Test Raid")
+    dzjrRaid:AwardItem("[Frostweave Cloth]", dzjr1, true)
+    dzjrRaid:AwardItem("[Mightstone Breastplate]", dzjr1, false)
+    dzjrRaid:AwardItem("[Seabone Legplates]", dzjr2, true)
+    dprint("****************************************************************************")
 end
 
 local function OnEvent(self, msg, ...)
