@@ -19,7 +19,6 @@ function Raid:new(name)
     self.alts = {}
     self.isPug = false
     self.drops = {awarded = {}, banked = {}, disenchanted = {}}
-    self.needs = {}
     return self
 end
 
@@ -66,10 +65,6 @@ function Raid:Print(public)
     for i,j in pairs(self.drops.banked) do
         if DEBUG or not j.deleted then func("   " .. j) end
     end
-    func("Used needs:")
-    for i,j in pairs(self.needs) do
-        func("   " .. j.name)
-    end
 end
 
 function Raid:ContainsInstance(id)
@@ -86,7 +81,7 @@ end
 
 function Raid:AwardItem(itemLink, player, useNeed)
     dprint("Awarding " .. itemLink .. " to " .. player .. 
-           " [need? " .. useNeed .. "]")
+           " [need? " .. tostring(useNeed) .. "]")
     tinsert(self.drops.awarded, Addon.Item:new(itemLink, player, useNeed))
 end
 
@@ -98,6 +93,32 @@ end
 function Raid:DisenchantItem(itemLink)
     dprint("Disenchanting " .. itemLink)
     tinsert(self.drops.disenchanted, Addon.Item:new(itemLink))
+end
+
+function Raid:UsedNeed(player)
+    player = type(player) == "string" and Addon.Player:new(player) or player
+    for i, item in pairs(self.drops.awarded) do
+        if not item.deleted and 
+           item.winner == player and 
+           item.usedNeed then 
+           return true
+    end
+    return false
+    end
+end
+
+function Raid:FreeNeed(player)
+    player = type(player) == "string" and Addon.Player:new(player) or player
+    dprint("Freeing " .. player .. "'s need roll.")
+    local awarded = self.drops.awarded
+    for i, item in pairs(awarded) do
+        dprint("   " .. item)
+        if item.winner == player and item.usedNeed then
+            dprint("   Changing need status of " .. item)
+            self:AwardItem(item.item, item.winner, false)
+            item.deleted = true
+        end
+    end
 end
 
 Addon.Raid = Raid

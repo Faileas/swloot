@@ -7,16 +7,16 @@ local dprint = (DEBUG and print) or function(...) end
 local Player = {}
 Player.__index = Player
 
-function Player:new(name, player)
-    if not player then
+function Player:new(name)
+    if type(name) == "string" then
         dprint("Creating new player " .. name)
         return setmetatable({name = name}, Player)
     else
-        if getmetatable(player) ~= Player then 
+        if getmetatable(name) ~= Player then 
             error("Attempt to copy incompatable object")
         end
-        dprint("Copying player " .. player)
-        return player:copy()
+        dprint("Copying player " .. name)
+        return name:copy()
     end
 end
 
@@ -40,6 +40,7 @@ Player.__concat = function(lhs, rhs)
 end
 
 Player.__eq = function(lhs, rhs)
+    dprint(lhs.main .. " == " .. rhs.main)
     return lhs.main == rhs.main
 end
 
