@@ -9,13 +9,24 @@ Item.__index = Item
 
 local setmetatable, pairs, tostring = setmetatable, pairs, tostring
 
+local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
+local function ParseItem(str)
+    local item = select(3, string.find(str, "^%s*(" .. ItemLinkPattern .. ")%s*$"))
+    if item then return item end
+    item = select(3, string.find(str, "^%s*%[(.+)%]%s*$")) or str
+    item = select(2, GetItemInfo(item))
+    if item then return item end
+    error("Bad item: " .. str)
+    return nil
+end
+
 function Item:new(item, winner, usedNeed)
     local self = setmetatable({}, Item)
-    if type(item) == "string" then
+    if type(item) == "string" or type(item) == "number" then
         dprint("Creating new item [" .. item .. "] " .. 
                "for [" .. tostring(winner) .. "] " ..
                "need? [" .. tostring(usedNeed) .. "]")
-        self.item = item
+        self.item = ParseItem(item)
         self.timestamp = Addon.Timestamp:new()
         self.winner = winner and Addon.Player:new(winner) or nil
         self.usedNeed = usedNeed
