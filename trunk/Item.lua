@@ -54,6 +54,33 @@ function Item:copy()
 end
 Item.__copy = Item.copy
 
+function Item:writeToSV()
+    return {
+            serializableType = "Item", 
+            id = tonumber(select(3, string.find(self.item, "item:(%d*):"))),
+            time = self.timestamp:writeToSV(),
+            winner = self.winner and self.winner.name or nil,
+            need = self.usedNeed,
+            del = self.deleted,
+           }
+end
+Item.__savable = Item.writeToSV
+
+function Item:readFromSV(tbl)
+    if tbl.serializableType ~= "Item" then
+        error("Invalid serializer " .. tbl.serializableType)
+    end
+    local self = {
+                  item = (select(2, GetItemInfo(tbl.id))),
+                  timestamp = Addon.Timestamp:readFromSV(tbl.time),
+                  winner = tbl.winner and Addon.Player:new(tbl.winner) or nil,
+                  usedNeed = tbl.need,
+                  deleted = tbl.deleted,
+                 }
+    return setmetatable(self, Item)
+end
+Item.__loadable = Item.readFromSV
+
 Item.__tostring = function(self)
     local str = self.deleted and "(d)" or ""
     if self.usedNeed then
