@@ -21,8 +21,8 @@ local function OnInitialize()
     
     dzjrRaid = swLoot.Raid:new("Test Raid")
     dzjrRaid:AwardItem("[Frostweave Cloth]", dzjr1, true)
-    dzjrRaid:AwardItem("[Mightstone Breastplate]", dzjr1, false)
-    dzjrRaid:AwardItem("[Seabone Legplates]", dzjr2, true)
+    dzjrRaid:AwardItem("[Hearthstone]", dzjr1, false)
+    dzjrRaid:AwardItem("[Crashin' Thrashin' Racer Controller]", dzjr2, true)
     dprint("****************************************************************************")
     eventFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
     
