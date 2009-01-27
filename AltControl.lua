@@ -40,6 +40,7 @@ local function LookupAlt(tbl, name)
     local main = TraceAlt(name, {})
     if not main then
         print("A singular main for '" .. name .."' can not be identified.")
+        KnownAlts[name] = name
         main = name
     end
     return main
