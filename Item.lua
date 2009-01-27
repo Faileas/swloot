@@ -11,6 +11,14 @@ local setmetatable, pairs, tostring = setmetatable, pairs, tostring
 
 local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
 local function ParseItem(str)
+    if type(str) == "number" then
+        local item = select(2, GetItemInfo(item))
+        if not item then 
+            GameTooltip:SetHyperlink("item:" .. item)
+            item = select(2, GetItemInfo(item))
+        end
+        return item
+    end
     local item = select(3, string.find(str, "^%s*(" .. ItemLinkPattern .. ")%s*$"))
     if item then return item end
     item = select(3, string.find(str, "^%s*%[(.+)%]%s*$")) or str
