@@ -23,6 +23,20 @@ end
 function Player:copy()
     return setmetatable({name = self.name}, Player)
 end
+Player.__copy = Player.copy
+
+function Player:writeToSV()
+    return {serializableType = "Player", name = self.name}
+end
+Player.__savable = Player.writeToSV
+
+function Player:readFromSV(tbl)
+    if tbl.serializableType ~= "Player" then
+        error("Invalid serializer " .. tbl.serializableType)
+    end
+    return setmetatable({name = tbl.name}, Player)
+end
+Player.__loadable = Player.readFromSV
 
 function Player:isMain()
     return self.name == self.main
@@ -51,5 +65,4 @@ Player.__index = function(t, i)
         return Player[i]
     end
 end
-Player.__copy = Player.copy
 Addon.Player = Player

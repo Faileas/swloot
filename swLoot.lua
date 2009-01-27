@@ -2,11 +2,14 @@
 local dprint = (DEBUG and print) or function(...) end
 
 local eventFrame = CreateFrame("frame")
-eventFrame:RegisterEvent("ADDON_LOADED")
+eventFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+eventFrame:RegisterEvent("PLAYER_LOGOUT")
 
+swLootData = {}
 swLoot = {
     version = tonumber(strmatch("$Revision$", "%d+")),
-    Defaults = {}
+    Defaults = {},
+    Data = swLootData,
 }
 
 local function OnInitialize()
@@ -21,11 +24,20 @@ local function OnInitialize()
     dzjrRaid:AwardItem("[Mightstone Breastplate]", dzjr1, false)
     dzjrRaid:AwardItem("[Seabone Legplates]", dzjr2, true)
     dprint("****************************************************************************")
+    eventFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
+    
+    dzjrRaid2 = dzjrRaid:readFromSV(swLootData.raid)
+end
+
+local function SaveData()
+    swLootData.raid = dzjrRaid:writeToSV()
 end
 
 local function OnEvent(self, msg, ...)
-    if msg == "ADDON_LOADED" and select(1, ...) == "swLoot" then
-        OnInitialize(self)
+    if msg == "PLAYER_ENTERING_WORLD" then
+        OnInitialize()
+    elseif msg == "PLAYER_LOGOUT" then
+        SaveData()
     end
 end
 eventFrame:SetScript("OnEvent", OnEvent)

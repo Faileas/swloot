@@ -22,6 +22,71 @@ function Raid:new(name)
     return self
 end
 
+function deepWrite(self, tbl)
+    for i,j in pairs(self) do
+        local ii
+        if type(i) == "table" then
+            local m = getmetatable(i)
+            if m and type(m.__savable) == "function" then
+                ii = m.__savable(i)
+            else
+                ii = {}
+                deepWrite(i, ii)
+            end
+        else
+            ii = i
+        end
+        if type(j) == "table" then
+            local m = getmetatable(j)
+            if m and type(m.__savable) == "function" then
+                tbl[ii] = m.__savable(j)
+            else
+                tbl[ii] = {}
+                deepWrite(j, tbl[ii])
+            end
+        else
+            tbl[ii] = j
+        end
+    end
+end
+
+function Raid:writeToSV()
+    local tbl = {serializableType = "Raid"}
+    deepWrite(self, tbl)
+    return setmetatable(tbl, Raid)
+end
+Raid.__savable = Raid.writeToSV
+
+local function deepRead(tbl)
+    for i,j in pairs(tbl) do
+        local ii
+        if type(i) == "table" then
+            ii = i.serializableType and 
+                 Addon[i.serializableType]:__loadable(i) or
+                 deepRead(i)
+        else
+            ii = i
+        end
+        if type(j) == "table" then
+            tbl[ii] = j.serializableType and
+                      Addon[j.serializableType]:__loadable(j) or
+                      deepRead(j)
+        else
+            tbl[ii] = j
+        end
+    end
+    return tbl
+end
+
+function Raid:readFromSV(tbl)
+    if tbl.serializableType ~= "Raid" then
+        error("Invalid serializer " .. tbl.serializableType)
+    end
+    local self = deepRead(tbl)
+    return setmetatable(self, Raid)
+end
+Raid.__loadable = Raid.readFromSV
+
 function Raid:Activate()
     dprint("Activating [" .. self:tostring() .. "]")
     for alt, main in pairs(self.alts) do

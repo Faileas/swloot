@@ -26,6 +26,22 @@ function Timestamp:copy()
         Timestamp)
 end
 
+function Timestamp:writeToSV()
+    return {serializableType = "Timestamp", time = tostring(self)}
+end
+Timestamp.__savable = Timestamp.writeToSV
+
+function Timestamp:readFromSV(tbl)
+    if tbl.serializableType ~= "Timestamp" then
+        error("Invalid serializer " .. tbl.serializableType)
+    end
+    local _, _, month, day, year, hour, minute, second
+        = string.find(tbl.time, "(%d*)/(%d*)/(%d*) (%d*):(%d*):(%d*)")
+    return setmetatable({hour = hour, minute = minute, seconds = second,
+                         month = month, day = day, year = year}, Timestamp)
+end
+Timestamp.__loadable = Timestamp.readFromSV
+
 local function toString(self)
     local ret = self.month .. "/"
     local str = tostring(self.day)
