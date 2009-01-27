@@ -23,6 +23,7 @@ local function OnInitialize()
     dzjrRaid:AwardItem("[Frostweave Cloth]", dzjr1, true)
     dzjrRaid:AwardItem("[Hearthstone]", dzjr1, false)
     dzjrRaid:AwardItem("[Crashin' Thrashin' Racer Controller]", dzjr2, true)
+    dzjrRaid:AwardItem("Acherus Knight's Gauntlets", "Faileas", true)
     dprint("****************************************************************************")
     eventFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
     
