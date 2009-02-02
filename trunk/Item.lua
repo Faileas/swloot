@@ -12,10 +12,10 @@ local setmetatable, pairs, tostring = setmetatable, pairs, tostring
 local ItemLinkPattern = "|c%x+|H.+|h%[.+%]|h|r"
 local function ParseItem(str)
     if type(str) == "number" then
-        local item = select(2, GetItemInfo(item))
+        local item = select(2, GetItemInfo(str))
         if not item then 
-            GameTooltip:SetHyperlink("item:" .. item)
-            item = select(2, GetItemInfo(item))
+            GameTooltip:SetHyperlink("item:" .. str)
+            item = select(2, GetItemInfo(str))
         end
         return item
     end
@@ -68,8 +68,9 @@ function Item:writeToSV()
             id = tonumber(select(3, string.find(self.item, "item:(%d*):"))),
             time = self.timestamp:writeToSV(),
             winner = self.winner and self.winner.name or nil,
-            need = self.usedNeed,
-            del = self.deleted,
+            need = self.usedNeed or nil,
+            changed = self.needTime and self.needTime:writeToSV(),
+            del = self.deleted or nil,
            }
 end
 Item.__savable = Item.writeToSV
@@ -83,6 +84,7 @@ function Item:readFromSV(tbl)
                   timestamp = Addon.Timestamp:readFromSV(tbl.time),
                   winner = tbl.winner and Addon.Player:new(tbl.winner) or nil,
                   usedNeed = tbl.need,
+                  needTime = tbl.changed and Addon.Timestamp:readFromSV(tbl.changed),
                   deleted = tbl.deleted,
                  }
     return setmetatable(self, Item)
@@ -111,6 +113,29 @@ end
 --  match.  Winner, deleted state, and so forth, are not considered.
 Item.__eq = function(lhs, rhs)
     return lhs.item == rhs.item and lhs.timestamp == rhs.timestamp
+end
+
+function Item:ChangeNeed(newNeed)
+    if newNeed == self.usedNeed then return end
+    dprint("Changing need of " .. self .. " to " .. tostring(newNeed))
+    self.usedNeed = newNeed
+    self.needTime = Addon.Timestamp:new()
+end
+
+function Item:TimeNeedSet()
+    return self.needTime or self.timestamp
+end
+
+function Item:CopyNeed(copy)
+    if self ~= copy then
+        error("Attempt to synchronize incompatable items")
+    end
+    local sTime = self.needTime or self.timestamp
+    local cTime = copy.needTime or copy.timestamp
+    if sTime < cTime then
+        self.needTime = Addon.Timestamp:new(cTime)
+        self.usedNeed = copy.usedNeed
+    end
 end
 
 function Item:IsQuest(item)
