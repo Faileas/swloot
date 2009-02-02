@@ -14,17 +14,15 @@ swLoot = {
 
 local function OnInitialize()
     swLoot.Alts["Aggronaut"] = "Ellone"
-    swLoot.Alts["Raam"] = "Ellone"
+    swLoot.Alts["Ellone"] = "Aggronaut"
     dzjr1 = swLoot.Player:new("Aggronaut")
     dzjr2 = swLoot.Player:new("Raam")
     dzjr3 = swLoot.Player:new("Faileas")
     
     dzjrRaid = swLoot.Raid:new("Test Raid")
-    dzjrRaid:AwardItem("[Frostweave Cloth]", dzjr1, true)
-    dzjrRaid:AwardItem("[Hearthstone]", dzjr1, false)
-    dzjrRaid:AwardItem("[Crashin' Thrashin' Racer Controller]", dzjr2, true)
-    dzjrRaid:AwardItem("Acherus Knight's Gauntlets", "Faileas", true)
-    dprint("****************************************************************************")
+    dzjrRaid:AwardItem(33470, dzjr1, true)
+    dzjrRaid:AwardItem(6948, dzjr1, false)
+    dzjrRaid:AwardItem(37710, dzjr2, true)
     eventFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
     
     dzjrRaid2 = dzjrRaid:readFromSV(swLootData.raid)
