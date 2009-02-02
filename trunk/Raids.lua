@@ -109,6 +109,43 @@ Raid.__tostring = function(self)
     return self.name .. " created on " .. self.date
 end
 
+function Raid:IterateDrops(category)
+    if category then
+        local i = 0
+        local tbl = self.drops[category:lower()]
+        if not tbl then error("Invalid drop category: " .. tostring(category)) end
+        return function()
+            repeat
+                i = i + 1
+            until DEBUG or i > #tbl or not tbl[i].deleted
+            if i > #tbl then return nil end
+            return tbl[i]
+        end
+    else
+        local i = 0
+        local tbl = self.drops.awarded
+        local func
+        func = function()
+            repeat
+                i = i + 1
+            until DEBUG or i > #tbl or not tbl[i].deleted
+            if i > #tbl then 
+                if tbl == self.drops.awarded then 
+                    tbl = self.drops.disenchanted
+                elseif tbl == self.drops.disenchanted then
+                    tbl = self.drops.banked
+                else
+                    return nil
+                end
+                i = 0
+                return func()
+            end
+            return tbl[i]
+        end
+        return func  
+    end
+end
+
 local function ListNeeds(drops)
     local used = {}
     for i,item in pairs(drops) do
@@ -129,16 +166,16 @@ function Raid:Print(public)
     func("Raid: " .. self.name)
     func("Created on: " .. self.date)
     func("Awarded items:")
-    for i,j in pairs(self.drops.awarded) do
-        if DEBUG or not j.deleted then func("   " .. j) end
+    for i in self:IterateDrops("awarded") do
+        func("   " .. i)
     end
     func("Disenchanted items:")
-    for i,j in pairs(self.drops.disenchanted) do
-        if DEBUG or not j.deleted then func("   " .. j) end
+    for i in self:IterateDrops("disenchanted") do
+        func("   " .. i)
     end
     func("Banked items:")
-    for i,j in pairs(self.drops.banked) do
-        if DEBUG or not j.deleted then func("   " .. j) end
+    for i in self:IterateDrops("banked") do
+        func("   " .. i)
     end
     func("Used needs:")
     for i,j in pairs(ListNeeds(self.drops.awarded)) do
