@@ -109,7 +109,7 @@ Raid.__tostring = function(self)
     return self.name .. " created on " .. self.date
 end
 
-function Raid:IterateDrops(category)
+function Raid:IterateDrops(category, includeDeleted)
     if category then
         local i = 0
         local tbl = self.drops[category:lower()]
@@ -117,7 +117,7 @@ function Raid:IterateDrops(category)
         return function()
             repeat
                 i = i + 1
-            until DEBUG or i > #tbl or not tbl[i].deleted
+            until includeDeleted or i > #tbl or not tbl[i].deleted
             if i > #tbl then return nil end
             return tbl[i]
         end
@@ -128,7 +128,7 @@ function Raid:IterateDrops(category)
         func = function()
             repeat
                 i = i + 1
-            until DEBUG or i > #tbl or not tbl[i].deleted
+            until includeDeleted or i > #tbl or not tbl[i].deleted
             if i > #tbl then 
                 if tbl == self.drops.awarded then 
                     tbl = self.drops.disenchanted
@@ -166,15 +166,15 @@ function Raid:Print(public)
     func("Raid: " .. self.name)
     func("Created on: " .. self.date)
     func("Awarded items:")
-    for i in self:IterateDrops("awarded") do
+    for i in self:IterateDrops("awarded", DEBUG) do
         func("   " .. i)
     end
     func("Disenchanted items:")
-    for i in self:IterateDrops("disenchanted") do
+    for i in self:IterateDrops("disenchanted", DEBUG) do
         func("   " .. i)
     end
     func("Banked items:")
-    for i in self:IterateDrops("banked") do
+    for i in self:IterateDrops("banked", DEBUG) do
         func("   " .. i)
     end
     func("Used needs:")
