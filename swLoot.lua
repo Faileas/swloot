@@ -23,6 +23,12 @@ local function OnInitialize()
     dzjrRaid:AwardItem(33470, dzjr1, true)
     dzjrRaid:AwardItem(6948, dzjr1, false)
     dzjrRaid:AwardItem(37710, dzjr2, true)
+    dzjrRaid:BankItem(36913)
+    dzjrRaid:BankItem(35627)
+    dzjrRaid:BankItem(2589)
+    dzjrRaid:DisenchantItem(2983)
+    dzjrRaid:DisenchantItem(10402)
+    
     eventFrame:UnregisterEvent("PLAYER_ENTERING_WORLD")
     
     dzjrRaid2 = dzjrRaid:readFromSV(swLootData.raid)
