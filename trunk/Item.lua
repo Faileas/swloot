@@ -66,10 +66,10 @@ function Item:writeToSV()
     return {
             serializableType = "Item", 
             id = tonumber(select(3, string.find(self.item, "item:(%d*):"))),
-            time = self.timestamp:writeToSV(),
+            time = tostring(self.timestamp),
             winner = self.winner and self.winner.name or nil,
             need = self.usedNeed or nil,
-            changed = self.needTime and self.needTime:writeToSV(),
+            changed = self.needTime and tostring(self.needTime) or nil,
             del = self.deleted or nil,
            }
 end
@@ -81,10 +81,10 @@ function Item:readFromSV(tbl)
     end
     local self = {
                   item = (select(2, GetItemInfo(tbl.id))),
-                  timestamp = Addon.Timestamp:readFromSV(tbl.time),
+                  timestamp = Addon.Timestamp:new(tbl.time),
                   winner = tbl.winner and Addon.Player:new(tbl.winner) or nil,
                   usedNeed = tbl.need,
-                  needTime = tbl.changed and Addon.Timestamp:readFromSV(tbl.changed),
+                  needTime = tbl.changed and Addon.Timestamp:new(tbl.changed),
                   deleted = tbl.deleted,
                  }
     return setmetatable(self, Item)

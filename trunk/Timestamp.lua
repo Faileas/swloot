@@ -11,12 +11,18 @@ function Timestamp:new(copy)
         self = {hour = hour, minute = minute, seconds = localtime.sec,
                 month = month, day = day, year = year}
         return setmetatable(self, Timestamp)
-    else
-        if getmetatable(copy) ~= Timestamp then
-            error("Attempt to copy incompatable type")
+    elseif type(copy) == "string" then
+        local found, _, month, day, year, hour, minute, second
+            = string.find(copy, "(%d*)/(%d*)/(%d*) (%d*):(%d*):(%d*)")
+        if not found then
+            error("Invalid timestamp string: " .. copy)
         end
-        return copy:copy()
+        return setmetatable({hour = hour, minute = minute, seconds = second,
+                             month = month, day = day, year = year}, Timestamp)
+    elseif getmetatable(copy) ~= Timestamp then
+        error("Attempt to copy incompatable type")
     end
+    return copy:copy()
 end
 
 function Timestamp:copy()
@@ -35,10 +41,7 @@ function Timestamp:readFromSV(tbl)
     if tbl.serializableType ~= "Timestamp" then
         error("Invalid serializer " .. tbl.serializableType)
     end
-    local _, _, month, day, year, hour, minute, second
-        = string.find(tbl.time, "(%d*)/(%d*)/(%d*) (%d*):(%d*):(%d*)")
-    return setmetatable({hour = hour, minute = minute, seconds = second,
-                         month = month, day = day, year = year}, Timestamp)
+    return Timestamp:new(tbl.time)
 end
 Timestamp.__loadable = Timestamp.readFromSV
 
