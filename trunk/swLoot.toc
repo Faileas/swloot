@@ -19,3 +19,4 @@ Raids.lua
 Item.lua
 Timestamp.lua
 Player.lua
+SpecialDrops.lua

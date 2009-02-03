@@ -139,17 +139,25 @@ function Item:CopyNeed(copy)
 end
 
 function Item:IsQuest(item)
-    if not item then item = self.item end
+    if not item then 
+        item = self.item 
+    else
+        item = ParseItem(item)
+    end
     local t = (select(6, GetItemInfo(item)))
-    return t == "Quest"
+    local id = tonumber(select(3, string.find(item, "Hitem:(%d+):")))
+    return t == "Quest" or Addon.QuestDrops[id] == true
 end
 
 function Item:IsTier(item)
-    if not item then item = self.item end
+    if not item then 
+        item = self.item 
+    else
+        item = ParseItem(item)
+    end
     local link = (select(2, GetItemInfo(item)))
-    local id = (select(3, string.find(link, "Hitem:(%d+):")))
-    dprint(id)
-    return false
+    local id = tonumber(select(3, string.find(link, "Hitem:(%d+):")))
+    return Addon.TierDrops[id] ~= nil
 end
 
 Addon.Item = Item
